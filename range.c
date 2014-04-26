@@ -64,13 +64,13 @@ void range_merge_with_next(struct range *rng){
 	list_for_each_entry(f, rng->consumers, consumers){
 		event_remove(f->drain);
 		event_remove(f->done);
-		range_calc_flow_events(rng, f);
+		range_calc_flow_events(f);
 	}
 
 	list_for_each_entry(f, nrng->consumers, consumers){
 		event_remove(f->drain);
 		event_remove(f->done);
-		range_calc_flow_events(rng, f);
+		range_calc_flow_events(f);
 	}
 
 	while(!list_empty(nrng->consumers)){
@@ -80,4 +80,8 @@ void range_merge_with_next(struct range *rng){
 	}
 
 	skip_list_delete_next(&rng->ranges);
+}
+
+void range_update_rcv_spd(struct connection *c){
+	c->f->drng->grow = c->rcv_spd;
 }

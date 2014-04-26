@@ -20,3 +20,7 @@ static inline int range_list_cmp(struct skip_list_head *a, void *_key){
 	} else
 		return 1;
 }
+
+static void range_update_snd_spd(struct flow *f){
+	return;
+}

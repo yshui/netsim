@@ -16,8 +16,8 @@ struct pricing {
 };
 
 struct range {
-	int start, len, total_len;
-	int grow; //grow speed, Kbits per second
+	int start, len, total_len; //in Kbits
+	double grow; //grow speed, Kbits per second
 	struct skip_list_head ranges;
 	struct list_head *consumers;
 	struct flow *producer;
@@ -30,27 +30,52 @@ struct resource {
 };
 
 struct store {
-	int total_size; //In Kbits
+	int total_size; //In Kbits, enough for 4Tbits or 512GBytes
 	struct resource *rsrc_hash;
 };
 
 struct connection {
-	int upbound_bandwidth;
-	int snd_spd, rcv_spd;
-	struct node *src, *dst;
+	double bwupbound;
+	double speed[2];
+	double delay;
+	//outbound/src/snd = [0], inbound/dst/rcv = [1]
+	//{inbound,outbound}_max = sum of bwupbound
+	//When {inbound,outbound}_max < {inbound,outbound}, all connections
+	//gets their speed = bwupbound.
+	//
+	//Otherwise let:
+	//speed share = bwupbound*{inbound,outbound}/{inbound,outbound}_max
+	//Speed share is like QoS, limiting the maximum local send receive
+	//speed, while bwupbound is the physical transfer speed limit on the
+	//route path. And inbound, outbound is the physical local speed limit
+	//on a given node.
+	//initial speed is determined on flow creation, equals to the outbound
+	//speed share of the connection on src side. When a speed is descreased
+	//due to insufficient speed share on dst side or new connection created
+	//on src side, the speed share to spread to other connections on
+	//{src,dst} side (which decrease the speed share).
+	//Obviously a speed share won't exceed bwupbound
+	//
+	//When a dst want to increase its rcv speed, it can increase above its
+	//speed share on src side. src side should decrease those connections
+	//whose speed exceed thier speed share to fulfill the request.
+	//When src want to increase snd speed, the dst does the similar thing.
+	//
+	//So the maximum speed possible is min(snd_spd_share, rcv_spd_share).
+	struct node *peer[2];
 	struct flow *f; //Might be null
-	struct list_head ins, outs;
+	struct list_head conns[2];
 	struct list_head *spd_evs;
 };
 
 struct node {
-	int inbound, outbound;
-	int inbound_usage, outbound_usage;
+	double maximum_bandwidth[2];
+	double bandwidth_usage[2];
+	double total_bwupbound[2]; // sum of all bwupbound
 	void *loction, *activity; //Used for calculate bandwidth between nodes
 	struct store *store;
 	struct pricing *p; //Pricing infomation
-	struct list_head *inbound_conn; //Nodes connected with this node
-	struct list_head *outbound_conn;
+	struct list_head *conns[2]; //Nodes connected with this node
 	//Return true if the node decide to accept this request
 	int node_id;
 };
@@ -58,7 +83,7 @@ struct node {
 struct flow {
 	//This is a directional flow
 	struct node *src, *dst;
-	int bandwidth;
+	double bandwidth;
 	int resource_id;
 	int start;
 	double begin_time;
