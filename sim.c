@@ -7,6 +7,9 @@
 #include "flow.h"
 #include "node.h"
 
+const double eps = 1e-6;
+int global_log_level = LOG_INFO;
+
 void sim_send_packet(struct sim_state *s, void *data, int len,
 		     struct node *src, struct node *dst){
 	double delay = s->dlycalc(src->loction, dst->loction);
@@ -45,7 +48,7 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	nf->resource_id = rid;
 	nf->bandwidth = bandwidth;
 	range_calc_flow_events(nf);
-	list_add(rng->consumers, &nf->consumers);
+	list_add(&nf->consumers, &rng->consumers);
 
 	return 0;
 }

@@ -18,13 +18,16 @@ void range_calc_flow_events(struct flow *f){
 	struct range *srng = f->srng;
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
-	double drain_time = srng->len/(double)(srng->grow-f->bandwidth);
+	int drng_start = f->drng->start+f->drng->len-srng->start;
+	double drain_time = (srng->len-drng_start)/
+			    (double)(srng->grow-f->bandwidth);
 
 	f->drain = f->done = NULL;
 	if (drain_time > srng->producer->done->time ||
 	    srng->grow > f->bandwidth+eps) {
 		if (!nh) {
-			drain_time = (srng->total_len-srng->start)/(double)f->bandwidth;
+			drain_time = (srng->total_len-srng->start-drng_start)/
+				     (double)f->bandwidth;
 			f->drain = event_new(drain_time, FLOW_DRAIN, f);
 		}
 	}else
@@ -38,7 +41,7 @@ void range_calc_flow_events(struct flow *f){
 		npos = nrng->start;
 	}else
 		npos = drng->total_len;
-	double done_time = (npos-drng->start)/(double)f->bandwidth;
+	double done_time = (npos-drng->start-drng->len)/(double)f->bandwidth;
 	if (done_time < f->drain->time) {
 		free(f->drain);
 		f->drain = NULL;
@@ -61,27 +64,23 @@ void range_merge_with_next(struct range *rng){
 	rng->grow = nrng->grow;
 
 	struct flow *f;
-	list_for_each_entry(f, rng->consumers, consumers){
+	list_for_each_entry(f, &rng->consumers, consumers){
 		event_remove(f->drain);
 		event_remove(f->done);
 		range_calc_flow_events(f);
 	}
 
-	list_for_each_entry(f, nrng->consumers, consumers){
+	list_for_each_entry(f, &nrng->consumers, consumers){
 		event_remove(f->drain);
 		event_remove(f->done);
 		range_calc_flow_events(f);
 	}
 
-	while(!list_empty(nrng->consumers)){
-		struct list_head *h = nrng->consumers;
-		nrng->consumers = nrng->consumers->next;
-		list_add(h, rng->consumers);
+	while(!list_empty(&nrng->consumers)){
+		struct list_head *h = nrng->consumers.next;
+		list_del(h);
+		list_add(h, &rng->consumers);
 	}
 
 	skip_list_delete_next(&rng->ranges);
-}
-
-void range_update_rcv_spd(struct connection *c){
-	c->f->drng->grow = c->rcv_spd;
 }

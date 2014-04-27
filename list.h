@@ -397,7 +397,7 @@ static inline void list_splice_tail_init(struct list_head *list,
  * Note, that list is expected to be not empty.
  */
 #define list_first_entry(ptr, type, member) \
-	list_entry((ptr)->next, type, member)
+	(type *) list_entry((ptr)->next, type, member)
 
 /**
  * list_for_each	-	iterate over a list

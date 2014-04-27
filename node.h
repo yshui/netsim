@@ -1,3 +1,5 @@
+#pragma once
+
 #include "data.h"
 #include "range.h"
 #include "store.h"

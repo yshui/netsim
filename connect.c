@@ -2,6 +2,7 @@
 
 #include "data.h"
 #include "event.h"
+#include "range.h"
 
 struct spd_event {
 	struct event *e;
@@ -11,41 +12,18 @@ struct spd_event {
 	struct list_head spd_evs;
 };
 
-static inline void queue_spd_change(struct sim_state *s, struct connection *c,
-				    int amount, int type){
+static inline void queue_speed_event(struct connection *c, int dir, int close,
+				     double amount, struct sim_state *s){
 	struct spd_event *se = talloc(1, struct spd_event);
-	se->c = c;
+	se->type = dir;
 	se->amount = amount;
-	se->type = type;
-	se->e = event_new(s->dlycalc(c->src->loction, c->dst->loction),
-				    SPEED_CHANGE, se);
+	se->close = close;
+	se->e = event_new(s->now+c->delay, SPEED_CHANGE, se);
+
+	list_add(&se->spd_evs, &c->spd_evs);
+
 	event_add(s, se->e);
-
-	list_add(c->spd_evs, &se->spd_evs);
 }
-
-//outbound/src/snd = [0], inbound/dst/rcv = [1]
-struct connection *connection_create(struct sim_state *s,
-				     struct node *src, struct node *dst){
-	struct connection *c = talloc(1, struct connection);
-	int bw = c->speed[0] = c->bwupbound =
-		s->bwcalc(src->loction, dst->loction);
-	c->peer[0] = src;
-	c->peer[1] = dst;
-	c->speed[1] = 0;
-	list_add(src->conns[0], &c->conns[0]);
-	src->total_bwupbound[0] += bw;
-	if (src->total_bwupbound[0] > src->maximum_bandwidth[0]) {
-		double share = bw*src->maximum_bandwidth[0]/src->total_bwupbound[0];
-		//update all the shares;
-	}else
-		c->speed[0] = bw;
-
-	queue_spd_change(s, c, c->speed[0], SC_RCV);
-
-	return c;
-}
-
 
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
@@ -57,37 +35,27 @@ static inline double get_share(struct connection *c, int dir){
 	return total > max ? c->bwupbound*max/total : c->bwupbound;
 }
 
-static inline void queue_speed_event(struct connection *c, int dir, int close,
-				     double amount, struct sim_state *s){
-	struct spd_event *se = talloc(1, struct spd_event);
-	se->type = dir;
-	se->amount = amount;
-	se->close = close;
-	struct event *e = event_new(s->now, SPEED_CHANGE, se);
-	se->e = e;
-
-	list_add(c->spd_evs, &se->spd_evs);
-
-	event_add(s, e);
-}
-
 //Return the actual amount changed.
-static inline double bwspread(struct connection *c, double amount, int dir,
+double bwspread(struct connection *c, double amount, int dir,
 			      int close, struct sim_state *s){
 	//Negative amount is always fulfilled (assuming the amount is sane, i.e.
 	//-amount < c->speed[dir]), while positive amount is not.
 
 	//Speed change is almost always due to the other end's speed is changed,
-	//with the exception of connection closing.
+	//with the exception of connection closing and opening.
 
 	//So I don't queue event to notify the other end of speed change, since
 	//they should already know, I queue event only when the speed change
 	//can't be fulfilled.
 
+	//TODO Allow node to set arbitrary share for a connection.
+
 	if (close)
 		amount = -c->speed[dir];
+
 	struct node *n = c->peer[dir];
-	struct list_head *h = n->conns[dir];
+	assert(!list_empty(&n->conns[dir]));
+	struct list_head *h = &n->conns[dir];
 	double total = n->total_bwupbound[dir], max = n->maximum_bandwidth[dir];
 	double used = n->bandwidth_usage[dir];
 	double share = total > max ? c->bwupbound*max/total : c->bwupbound;
@@ -162,13 +130,15 @@ static inline double bwspread(struct connection *c, double amount, int dir,
 				delta = lshare - nc->speed[dir];
 				nc->speed[dir] -= amount*delta/e;
 				//queue speed increase event to the other end
+				queue_speed_event(c, !dir, 0, -amount*delta/e, s);
 			}
 		} else if (amount > eps && nc->speed[dir] > lshare) {
 			delta = nc->speed[dir]-lshare;
 			nc->speed[dir] -= spread_amount*delta/e;
+			//queue speed decrease event to the other end
+			queue_speed_event(c, !dir, 0, -spread_amount*delta/e, s);
 			//e > spread_amount is impossible, otherwise this
 			//connection's speed would exceed its share.
-			//queue speed decrease event to the other end
 		}
 	}
 	return spread_amount;
@@ -185,30 +155,55 @@ void connection_close(struct connection *c, int dir, struct sim_state *s){
 	queue_speed_event(c, !dir, 1, c->speed[!dir], s);
 }
 
+//outbound/src/snd = [0], inbound/dst/rcv = [1]
+//connection creation is always initiated by src
+struct connection *connection_create(struct sim_state *s,
+				     struct node *src, struct node *dst){
+	struct connection *c = talloc(1, struct connection);
+	c->bwupbound =
+		s->bwcalc(src->loction, dst->loction);
+	c->peer[0] = src;
+	c->peer[1] = dst;
+	c->speed[1] = 0;
+	INIT_LIST_HEAD(&c->spd_evs);
+	list_add(&c->conns[0], &src->conns[0]);
+	src->total_bwupbound[0] += c->bwupbound;
+
+	queue_speed_event(c, SC_RCV, c->speed[0], SC_RCV, s);
+
+	return c;
+}
+
 #define abs(x) ((x)>0?(x):-(x))
 
 void handle_speed_change(struct sim_state *s, struct event *e){
+	//Update the flow!!! XXX
 	struct spd_event *se = e->data;
-	if (se->close) {
 
-	double remainder;
-	switch(se->type){
-		case SC_RCV:
-			assert(se->amount > 0);
-			assert(se->amount < se->c->dst->inbound);
-			remainder = bwspread_rcv_spd_ins(se->c->dst->inbound_conn,
-							 se->c, -se->amount);
-			assert(abs(remainder) <= eps);
-			se->c->rcv_spd += se->amount;
-			range_update_rcv_spd(se->c);
-			break;
-		case SC_SND:
-			assert(se->amount < 0);
-			remainder = bwspread_snd_spd_outs(se->c->src->outbound_conn,
-							  se->c, -se->amount);
-			se->c->src->outbound_usage -= remainder;
-			se->c->snd_spd += se->amount;
-			range_update_snd_spd(se->c);
-			break;
+	bwspread(se->c, se->amount, se->type, se->close, s);
+	if (se->type == SC_RCV){
+		struct range *rng = se->c->f->drng;
+		rng->len += rng->grow*(s->now-rng->last_update);
+		rng->last_update = s->now;
+		se->c->f->bandwidth = rng->grow = se->c->speed[1];
+		range_calc_flow_events(se->c->f);
+		range_update_consumer_events(rng);
+	}
+
+	struct connection *c = se->c;
+	if (se->close) {
+		struct list_head *h = &c->spd_evs;
+		int dir = se->type;
+		while(!list_empty(h)){
+			struct spd_event *se =
+				list_first_entry(h, struct spd_event, spd_evs);
+			list_del(h->next);
+			list_del(&se->spd_evs);
+			event_remove(se->e);
+			free(se->e);
+			free(se);
+		}
+		list_del(&c->conns[dir]);
+		free(c);
 	}
 }

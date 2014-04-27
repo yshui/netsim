@@ -21,6 +21,8 @@ static inline int range_list_cmp(struct skip_list_head *a, void *_key){
 		return 1;
 }
 
-static void range_update_snd_spd(struct flow *f){
-	return;
+static inline void range_update_consumer_events(struct range *rng){
+	struct flow *f;
+	list_for_each_entry(f, &rng->consumers, consumers)
+		range_calc_flow_events(f);
 }

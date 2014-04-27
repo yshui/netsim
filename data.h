@@ -5,6 +5,7 @@
 #include "list.h"
 #include "skiplist.h"
 #include "uthash.h"
+#include "common.h"
 
 struct sim_state;
 struct flow;
@@ -18,8 +19,9 @@ struct pricing {
 struct range {
 	int start, len, total_len; //in Kbits
 	double grow; //grow speed, Kbits per second
+	double last_update;
 	struct skip_list_head ranges;
-	struct list_head *consumers;
+	struct list_head consumers;
 	struct flow *producer;
 };
 
@@ -65,7 +67,7 @@ struct connection {
 	struct node *peer[2];
 	struct flow *f; //Might be null
 	struct list_head conns[2];
-	struct list_head *spd_evs;
+	struct list_head spd_evs;
 };
 
 struct node {
@@ -75,7 +77,7 @@ struct node {
 	void *loction, *activity; //Used for calculate bandwidth between nodes
 	struct store *store;
 	struct pricing *p; //Pricing infomation
-	struct list_head *conns[2]; //Nodes connected with this node
+	struct list_head conns[2]; //Nodes connected with this node
 	//Return true if the node decide to accept this request
 	int node_id;
 };
@@ -120,7 +122,7 @@ struct sim_state {
 	struct skip_list_head events;
 	struct resource *resources;
 	struct node *nodes;
-	struct list_head *flows;
+	struct list_head flows;
 	event_handler default_handler[LAST_EVENT];
 	int (*bwcalc)(void *src, void *dst);
 	int (*dlycalc)(void *src, void *dst);
