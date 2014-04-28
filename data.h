@@ -36,6 +36,8 @@ struct store {
 	struct resource *rsrc_hash;
 };
 
+enum peer_type {P_SND = 0, P_RCV};
+
 struct connection {
 	double bwupbound;
 	double speed[2];
@@ -95,6 +97,7 @@ struct flow {
 	//Drain event is when the flow has drained the source range
 	struct event *done, *drain;
 	struct range *drng, *srng;
+	struct connection *c;
 	struct list_head consumers;
 };
 

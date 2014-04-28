@@ -47,6 +47,7 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	nf->srng = rng;
 	nf->resource_id = rid;
 	nf->bandwidth = c->speed[1];
+	nf->c = c;
 	range_calc_flow_events(nf);
 	list_add(&nf->consumers, &rng->consumers);
 

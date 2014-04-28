@@ -9,7 +9,7 @@ struct spd_event {
 	struct connection *c;
 	double speed;
 	int close;
-	enum {SC_SND = 0, SC_RCV} type;
+	enum peer_type type;
 	struct list_head spd_evs;
 };
 
@@ -165,7 +165,7 @@ struct connection *connection_create(struct sim_state *s,
 				     struct node *src, struct node *dst){
 	struct connection *c = talloc(1, struct connection);
 	c->bwupbound =
-		s->bwcalc(src->loction, dst->loction);
+		s->bwcalc(src->user_data, dst->user_data);
 	c->peer[0] = src;
 	c->peer[1] = dst;
 	c->speed[1] = 0;
@@ -173,7 +173,7 @@ struct connection *connection_create(struct sim_state *s,
 	list_add(&c->conns[0], &src->conns[0]);
 	src->total_bwupbound[0] += c->bwupbound;
 
-	queue_speed_event(c, SC_RCV, c->speed[0], SC_RCV, s);
+	queue_speed_event(c, P_RCV, c->speed[0], P_RCV, s);
 
 	return c;
 }
@@ -196,7 +196,7 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 	se->c->pending_event[!se->type] = 0;
 	se->c->f->bandwidth = se->c->speed[se->type];
 
-	if (se->type == SC_RCV){
+	if (se->type == P_RCV){
 		//Update the flow and its drng
 		struct range *rng = se->c->f->drng;
 		rng->len += rng->grow*(s->now-rng->last_update);
