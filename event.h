@@ -1,9 +1,11 @@
 #pragma once
 #include "skiplist.h"
 #include "data.h"
+
 static inline void event_remove(struct event *e){
 	if (!e)
 		return;
+	e->qtime = -1;
 	skip_list_delete_next(e->events.prev);
 }
 
@@ -20,5 +22,6 @@ static inline int event_cmp(struct skip_list_head *h, void *_key){
 }
 
 static inline void event_add(struct sim_state *s, struct event *e){
+	e->qtime = s->now;
 	skip_list_insert(&s->events, &e->events, &e->time, event_cmp);
 }

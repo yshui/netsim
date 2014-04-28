@@ -7,22 +7,25 @@
 struct spd_event {
 	struct event *e;
 	struct connection *c;
-	int amount, close;
+	double speed;
+	int close;
 	enum {SC_SND = 0, SC_RCV} type;
 	struct list_head spd_evs;
 };
 
 static inline void queue_speed_event(struct connection *c, int dir, int close,
-				     double amount, struct sim_state *s){
+				     double speed, struct sim_state *s){
 	struct spd_event *se = talloc(1, struct spd_event);
 	se->type = dir;
-	se->amount = amount;
+	se->speed = speed;
 	se->close = close;
 	se->e = event_new(s->now+c->delay, SPEED_CHANGE, se);
 
 	list_add(&se->spd_evs, &c->spd_evs);
 
 	event_add(s, se->e);
+
+	c->pending_event[!dir] = s->now+c->delay;
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -151,6 +154,7 @@ void connection_close(struct connection *c, int dir, struct sim_state *s){
 	//Spread the bandwidth to remaining connections.
 	bwspread(c, c->speed[dir], dir, 1, s);
 	list_del(&c->conns[dir]);
+	c->peer[dir]->total_bwupbound[0] -= c->bwupbound;
 	//Queue event to notify the connection is closed.
 	queue_speed_event(c, !dir, 1, c->speed[!dir], s);
 }
@@ -177,23 +181,40 @@ struct connection *connection_create(struct sim_state *s,
 #define abs(x) ((x)>0?(x):-(x))
 
 void handle_speed_change(struct sim_state *s, struct event *e){
-	//Update the flow!!! XXX
 	struct spd_event *se = e->data;
 
-	bwspread(se->c, se->amount, se->type, se->close, s);
+	//Ignore events that are queued before our last event can reach the
+	//other end.
+
+	//By doing this, pending event will not be overwritten before it is
+	//handled.
+	if (e->qtime < se->c->pending_event[se->type])
+		return;
+
+	bwspread(se->c, se->speed-se->c->speed[se->type], se->type, se->close, s);
+	//The pending event has been handled now.
+	se->c->pending_event[!se->type] = 0;
+	se->c->f->bandwidth = se->c->speed[se->type];
+
 	if (se->type == SC_RCV){
+		//Update the flow and its drng
 		struct range *rng = se->c->f->drng;
 		rng->len += rng->grow*(s->now-rng->last_update);
 		rng->last_update = s->now;
 		se->c->f->bandwidth = rng->grow = se->c->speed[1];
+		rng = se->c->f->srng;
+		rng->len += rng->grow*(s->now-rng->last_update);
+		rng->last_update = s->now;
 		range_calc_flow_events(se->c->f);
 		range_update_consumer_events(rng);
 	}
 
 	struct connection *c = se->c;
 	if (se->close) {
+		c->peer[se->type]->total_bwupbound[se->type] -= c->speed[se->type];
 		struct list_head *h = &c->spd_evs;
 		int dir = se->type;
+		//Unqueue all of its events.
 		while(!list_empty(h)){
 			struct spd_event *se =
 				list_first_entry(h, struct spd_event, spd_evs);

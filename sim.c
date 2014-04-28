@@ -4,7 +4,7 @@
 #include "data.h"
 #include "event.h"
 #include "sim.h"
-#include "flow.h"
+#include "connect.h"
 #include "node.h"
 
 const double eps = 1e-6;
@@ -12,7 +12,7 @@ int global_log_level = LOG_INFO;
 
 void sim_send_packet(struct sim_state *s, void *data, int len,
 		     struct node *src, struct node *dst){
-	double delay = s->dlycalc(src->loction, dst->loction);
+	double delay = s->dlycalc(src->user_data, dst->user_data);
 	struct packet *p = calloc(1, sizeof(struct packet));
 	p->src = src;
 	p->dst = dst;
@@ -36,7 +36,7 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	if (!r)
 		return -1;
 	rng = range_get(r, start);
-	int bandwidth = connect_create(src, dst);
+	struct connection *c = connection_create(s, src, dst);
 
 	nf->begin_time = s->now;
 	nf->start = start;
@@ -46,9 +46,26 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	nf->drng->producer = nf;
 	nf->srng = rng;
 	nf->resource_id = rid;
-	nf->bandwidth = bandwidth;
+	nf->bandwidth = c->speed[1];
 	range_calc_flow_events(nf);
 	list_add(&nf->consumers, &rng->consumers);
 
 	return 0;
+}
+
+void sim_register_handler(int type, int priority, event_handler_func f,
+			  struct sim_state *s){
+	struct list_head *h = &s->handlers[type];
+	struct event_handler *eh;
+	list_for_each_entry(eh, h, handlers)
+		if (eh->pri > priority)
+			break;
+
+	struct event_handler *neh = talloc(1, struct event_handler);
+	neh->f = f;
+	neh->pri = priority;
+	if (eh == NULL)
+		list_add(&neh->handlers, h->prev);
+	else
+		list_add(&neh->handlers, eh->handlers.prev);
 }

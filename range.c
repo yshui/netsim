@@ -14,7 +14,14 @@ struct range *range_get(struct resource *rsrc, int start){
 }
 
 //Calculate flow events. The flow structure must be fully populated.
+//Done event is when the drng reaches next range's beginning.
+//Drain event is when the end of srng is RECEIVED, so the delay should be
+//considered as well.
+//(note after drain event the srng may still be growing, so instead of closing 
+//the connection, we throttle the send speed).
 void range_calc_flow_events(struct flow *f){
+	if (f->bandwidth < eps)
+		return;
 	struct range *srng = f->srng;
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
@@ -27,7 +34,7 @@ void range_calc_flow_events(struct flow *f){
 	    srng->grow > f->bandwidth+eps) {
 		if (!nh) {
 			drain_time = (srng->total_len-srng->start-drng_start)/
-				     (double)f->bandwidth;
+				     f->bandwidth;
 			f->drain = event_new(drain_time, FLOW_DRAIN, f);
 		}
 	}else

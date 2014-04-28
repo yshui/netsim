@@ -40,6 +40,8 @@ struct connection {
 	double bwupbound;
 	double speed[2];
 	double delay;
+	//when will the last event sent by [dir] reach [!dir]
+	double pending_event[2];
 	//outbound/src/snd = [0], inbound/dst/rcv = [1]
 	//{inbound,outbound}_max = sum of bwupbound
 	//When {inbound,outbound}_max < {inbound,outbound}, all connections
@@ -74,7 +76,7 @@ struct node {
 	double maximum_bandwidth[2];
 	double bandwidth_usage[2];
 	double total_bwupbound[2]; // sum of all bwupbound
-	void *loction, *activity; //Used for calculate bandwidth between nodes
+	void *user_data; //Used for calculate bandwidth between nodes
 	struct store *store;
 	struct pricing *p; //Pricing infomation
 	struct list_head conns[2]; //Nodes connected with this node
@@ -106,13 +108,25 @@ enum event_type {
 	LAST_EVENT,
 };
 
-typedef void (*event_handler)(struct event *);
+typedef void (*event_handler_func)(struct event *);
+
+enum handler_priority {
+	HNDR_DEFAULT = 0,
+	HNDR_USER,
+};
+
+struct event_handler{
+	event_handler_func f;
+	struct list_head handlers;
+	enum handler_priority pri;
+};
 
 struct event {
 	enum event_type type;
-	double time;
+	//time: when will the event be triggered
+	//qtime: when is this event queued
+	double time, qtime;
 	void *data;
-	event_handler eh;
 	//struct sim_state *s;
 	struct skip_list_head events;
 };
@@ -123,7 +137,7 @@ struct sim_state {
 	struct resource *resources;
 	struct node *nodes;
 	struct list_head flows;
-	event_handler default_handler[LAST_EVENT];
+	struct list_head handlers[LAST_EVENT];
 	int (*bwcalc)(void *src, void *dst);
 	int (*dlycalc)(void *src, void *dst);
 	void (*evgen)(struct sim_state *s);
