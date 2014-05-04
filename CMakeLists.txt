@@ -3,7 +3,8 @@ add_executable(netsim
 	sim.c
 	flow.c
 	range.c
-	store.c
+	user.c
+	main.c
 )
-
+target_link_libraries(netsim dl)
 

@@ -19,7 +19,7 @@ void sim_send_packet(struct sim_state *s, void *data, int len,
 	p->data = data;
 	p->len = len;
 	struct event *e = event_new(delay, PACKET_DONE, p);
-	event_add(s, e);
+	event_add(e, s);
 }
 
 int sim_establish_flow(struct sim_state *s, int rid, int start,

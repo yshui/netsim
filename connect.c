@@ -23,7 +23,7 @@ static inline void queue_speed_event(struct connection *c, int dir, int close,
 
 	list_add(&se->spd_evs, &c->spd_evs);
 
-	event_add(s, se->e);
+	event_add(se->e, s);
 
 	c->pending_event[!dir] = s->now+c->delay;
 }
@@ -101,15 +101,14 @@ double bwspread(struct connection *c, double amount, int dir,
 		if (nc == c)
 			continue;
 		//lshare = the potential upbound of the connection
-		//       = min(share of connection on this end,
-		//	       share of connection on the other end)
+		//       = share of connection on the other end)
 		//	   when amount < 0 (so the speed is going to increase);
 		//
 		//	 = share of connection on this end
 		//	   when amount > 0;
 		double lshare = nc->bwupbound*total/max;
 		if (amount < eps) {
-			lshare = min(lshare, get_share(nc, !dir));
+			lshare = get_share(nc, !dir);
 			if (nc->speed[dir] < lshare)
 				e += lshare - nc->speed[dir];
 		} else if (amount > eps && nc->speed[dir] > lshare)
@@ -188,8 +187,8 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 
 	//By doing this, pending event will not be overwritten before it is
 	//handled.
-	if (e->qtime < se->c->pending_event[se->type])
-		return;
+	//if (e->qtime < se->c->pending_event[se->type])
+	//	return;
 
 	bwspread(se->c, se->speed-se->c->speed[se->type], se->type, se->close, s);
 	//The pending event has been handled now.

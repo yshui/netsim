@@ -15,6 +15,9 @@ struct skip_list_head {
 #define skip_list_entry(ptr, type, member) \
 	container_of(ptr, type, member)
 
+#define skip_list_empty(ptr) \
+	((ptr)->next[0] == NULL)
+
 static inline void skip_list_init_head(struct skip_list_head *h){
 	h->h = MAX_HEIGHT;
 	h->next = calloc(MAX_HEIGHT, sizeof(void *));

@@ -21,7 +21,7 @@ static inline int event_cmp(struct skip_list_head *h, void *_key){
 	return e->time > key ? 1 : -1;
 }
 
-static inline void event_add(struct sim_state *s, struct event *e){
+static inline void event_add(struct event *e, struct sim_state *s){
 	e->qtime = s->now;
 	skip_list_insert(&s->events, &e->events, &e->time, event_cmp);
 }

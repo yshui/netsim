@@ -74,6 +74,24 @@ struct connection {
 	struct list_head spd_evs;
 };
 
+enum node_state {
+	N_OFFLINE,
+	N_STALE,
+	N_PLAYING,
+	N_DONE,
+	N_IDLE,
+};
+
+struct def_user {
+	double bit_rate;
+	enum node_state next_state;
+	//low water mark: stop playing
+	//high water mark: start playing
+	int highwm, lowwm;
+	int buffer_pos;
+	struct event *e;
+};
+
 struct node {
 	double maximum_bandwidth[2];
 	double bandwidth_usage[2];
@@ -84,6 +102,7 @@ struct node {
 	struct list_head conns[2]; //Nodes connected with this node
 	//Return true if the node decide to accept this request
 	int node_id;
+	enum node_state state;
 };
 
 struct flow {
@@ -111,7 +130,7 @@ enum event_type {
 	LAST_EVENT,
 };
 
-typedef void (*event_handler_func)(struct event *);
+typedef void (*event_handler_func)(struct event *, struct sim_state *);
 
 enum handler_priority {
 	HNDR_DEFAULT = 0,
@@ -146,6 +165,7 @@ struct sim_state {
 	void (*evgen)(struct sim_state *s);
 };
 
+#define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
 
 static inline
 struct store *store_new(void){
@@ -171,4 +191,9 @@ struct range *range_new(int start){
 	return rng;
 }
 
-#define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
+static inline
+struct sim_state *sim_state_new(void){
+	struct sim_state *s = talloc(1, struct sim_state);
+	s->now = 0;
+	return s;
+}
