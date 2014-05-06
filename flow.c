@@ -21,6 +21,12 @@ void flow_throttle_handler(struct event *e, struct sim_state *s){
 	f->drng->last_update = s->now;
 	assert(f->bandwidth > f->srng->grow);
 	bwspread(f->c, f->srng->grow-f->bandwidth, 0, P_SND, s);
+	assert(f->bandwidth == f->srng->grow);
+
+	//Queue a event to notify the dst this speed change
+	queue_speed_event(f->c, P_RCV, 0, f->bandwidth, s);
+
+	//Recalculate the drain and done event
 	event_remove(f->done);
 	event_remove(f->drain);
 	range_calc_flow_events(f);

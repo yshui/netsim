@@ -30,14 +30,8 @@ void range_calc_flow_events(struct flow *f){
 			    (double)(srng->grow-f->bandwidth);
 
 	f->drain = f->done = NULL;
-	if (drain_time > srng->producer->done->time ||
-	    srng->grow > f->bandwidth+eps) {
-		if (!nh) {
-			drain_time = (srng->total_len-srng->start-drng_start)/
-				     f->bandwidth;
-			f->drain = event_new(drain_time, FLOW_DRAIN, f);
-		}
-	}else
+	if (drain_time < srng->producer->done->time &&
+	    srng->grow < f->bandwidth+eps)
 		f->drain = event_new(drain_time, FLOW_SOURCE_THROTTLE, f);
 
 	struct range *drng = f->drng;

@@ -1,20 +1,12 @@
 #include <assert.h>
 
-#include "data.h"
+#include "connect.h"
 #include "event.h"
 #include "range.h"
 
-struct spd_event {
-	struct event *e;
-	struct connection *c;
-	double speed;
-	int close;
-	enum peer_type type;
-	struct list_head spd_evs;
-};
-
-static inline void queue_speed_event(struct connection *c, int dir, int close,
-				     double speed, struct sim_state *s){
+extern inline void
+queue_speed_event(struct connection *c, int dir, int close,
+		  double speed, struct sim_state *s){
 	struct spd_event *se = talloc(1, struct spd_event);
 	se->type = dir;
 	se->speed = speed;
@@ -156,12 +148,16 @@ void connection_close(struct connection *c, int dir, struct sim_state *s){
 	c->peer[dir]->total_bwupbound[0] -= c->bwupbound;
 	//Queue event to notify the connection is closed.
 	queue_speed_event(c, !dir, 1, c->speed[!dir], s);
+
+	//Remove the corresponding flow from consumer
+	struct flow *f = c->f;
+	list_del(&f->consumers);
 }
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
 //connection creation is always initiated by src
-struct connection *connection_create(struct sim_state *s,
-				     struct node *src, struct node *dst){
+struct connection *connection_create(struct node *src, struct node *dst,
+				     struct sim_state *s){
 	struct connection *c = talloc(1, struct connection);
 	c->bwupbound =
 		s->bwcalc(src->user_data, dst->user_data);
@@ -173,6 +169,15 @@ struct connection *connection_create(struct sim_state *s,
 	src->total_bwupbound[0] += c->bwupbound;
 
 	queue_speed_event(c, P_RCV, c->speed[0], P_RCV, s);
+
+	//Insert into connection hash
+	id_t rand = random();
+	struct connection *oc = NULL;
+	do {
+		HASH_FIND_INT(s->conns, &rand, oc);
+	}while(oc);
+	c->conn_id = rand;
+	HASH_ADD_INT(s->conns, conn_id, c);
 
 	return c;
 }
@@ -223,7 +228,18 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 			free(se->e);
 			free(se);
 		}
+
+		//Close the flow
+		c->f->drng->grow = 0;
+		c->f->drng->producer = NULL;
+		event_remove(c->f->done);
+		event_remove(c->f->drain);
+		HASH_DEL(s->flows, c->f);
+
+		//Close the corresponding flow
 		list_del(&c->conns[dir]);
+		HASH_DEL(s->conns, c);
 		free(c);
+		se->c = NULL;
 	}
 }

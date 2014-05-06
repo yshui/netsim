@@ -1,8 +1,15 @@
 #include "data.h"
 #include "range.h"
 #include "event.h"
+#include "statistic.h"
+#include "connect.h"
 
-void recalculate_user_events(struct flow *f, struct sim_state *s){
+static void recalculate_user_events(struct spd_event *se, struct sim_state *s){
+	if (!se->c) {
+		//The connection is closed, so don't do anything
+		return;
+	}
+	struct flow *f = se->c->f;
 	struct range *rng = f->srng;
 	struct def_user *d = f->dst->user_data;
 	d->next_state = f->dst->state;
@@ -48,4 +55,21 @@ void recalculate_user_events(struct flow *f, struct sim_state *s){
 }
 
 void user_speed_change(struct event *e, struct sim_state *s){
+	//Recalculate event is enough
+	recalculate_user_events(e->data, s);
+	//Log speed change
 }
+
+void user_done(struct event *e, struct sim_state *s){
+	struct flow *f = e->data;
+	struct range *rng = f->drng;
+	struct def_user *d = f->dst->user_data;
+	if (rng->start+rng->len == rng->total_len){
+		//Already hit the end of the resource
+		d->next_state = N_DONE;
+		return;
+	}
+	//The drng is merged with next range
+	recalculate_user_events(e->data, s);
+}
+

@@ -36,7 +36,7 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	if (!r)
 		return -1;
 	rng = range_get(r, start);
-	struct connection *c = connection_create(s, src, dst);
+	struct connection *c = connection_create(src, dst, s);
 
 	nf->begin_time = s->now;
 	nf->start = start;
@@ -50,6 +50,14 @@ int sim_establish_flow(struct sim_state *s, int rid, int start,
 	nf->c = c;
 	range_calc_flow_events(nf);
 	list_add(&nf->consumers, &rng->consumers);
+
+	id_t rand = random();
+	struct flow *of;
+	do {
+		HASH_FIND_INT(s->flows, &rand, of);
+	}while(of);
+	nf->flow_id = rand;
+	HASH_ADD_INT(s->flows, flow_id, nf);
 
 	return 0;
 }

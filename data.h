@@ -10,6 +10,8 @@
 struct sim_state;
 struct flow;
 
+typedef unsigned int id_t;
+
 struct pricing {
 	double per_gb_bandwidth;
 	double per_gb_disk;
@@ -26,7 +28,8 @@ struct range {
 };
 
 struct resource {
-	int resource_id, len;
+	id_t resource_id;
+	int len;
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
 };
@@ -39,6 +42,8 @@ struct store {
 enum peer_type {P_SND = 0, P_RCV};
 
 struct connection {
+	id_t conn_id;
+	UT_hash_handle hh;
 	double bwupbound;
 	double speed[2];
 	double delay;
@@ -101,7 +106,8 @@ struct node {
 	struct pricing *p; //Pricing infomation
 	struct list_head conns[2]; //Nodes connected with this node
 	//Return true if the node decide to accept this request
-	int node_id;
+	id_t node_id;
+	UT_hash_handle hh;
 	enum node_state state;
 };
 
@@ -112,6 +118,8 @@ struct flow {
 	int resource_id;
 	int start;
 	double begin_time;
+	id_t flow_id;
+	UT_hash_handle hh;
 	//Done event is when the flow has filled the target range
 	//Drain event is when the flow has drained the source range
 	struct event *done, *drain;
@@ -153,13 +161,21 @@ struct event {
 	struct skip_list_head events;
 };
 
+#define SND 0
+#define RCV 1
+#define R_BANDWIDTH_USAGE 0
+#define R_SPEED_CHANGE 2
+
 struct sim_state {
 	double now;
 	struct skip_list_head events;
-	struct resource *resources;
 	struct node *nodes;
+	struct flow *flows;
+	struct connection *conns;
 	struct list_head flows;
 	struct list_head handlers[LAST_EVENT];
+	void *record_tail, *record_head;
+	int record_file_size, record_fd;
 	int (*bwcalc)(void *src, void *dst);
 	int (*dlycalc)(void *src, void *dst);
 	void (*evgen)(struct sim_state *s);
