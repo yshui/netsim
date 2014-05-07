@@ -3,6 +3,7 @@
 #include "connect.h"
 #include "event.h"
 #include "range.h"
+#include "record.h"
 
 extern inline void
 queue_speed_event(struct connection *c, int dir, int close,
@@ -152,6 +153,10 @@ void connection_close(struct connection *c, int dir, struct sim_state *s){
 	//Remove the corresponding flow from consumer
 	struct flow *f = c->f;
 	list_del(&f->consumers);
+
+	//Log connection close
+	uint8_t type = dir;
+	write_record(0, R_CONN_CLOSE, c->conn_id, 1, &type, s);
 }
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
@@ -178,6 +183,10 @@ struct connection *connection_create(struct node *src, struct node *dst,
 	}while(oc);
 	c->conn_id = rand;
 	HASH_ADD_INT(s->conns, conn_id, c);
+
+	//Log connection creation
+	write_record(0, R_CONN_CREATE, src->node_id, 4, &c->conn_id, s);
+	write_record(0, R_CONN_DST, c->conn_id, 4, &dst->node_id, s);
 
 	return c;
 }
@@ -213,6 +222,12 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 		range_update_consumer_events(rng);
 	}
 
+
+	//Log bandwidth usage
+	struct node *n = se->c->peer[se->type];
+	write_record(0, R_USAGE|se->type, n->node_id, -1,
+		     &n->bandwidth_usage[se->type], s);
+
 	struct connection *c = se->c;
 	if (se->close) {
 		c->peer[se->type]->total_bwupbound[se->type] -= c->speed[se->type];
@@ -229,6 +244,10 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 			free(se);
 		}
 
+		//Log connection close
+		uint8_t type = se->type;
+		write_record(0, R_CONN_CLOSE|se->type, se->c->conn_id, 1, &type, s);
+
 		//Close the flow
 		c->f->drng->grow = 0;
 		c->f->drng->producer = NULL;
@@ -241,5 +260,7 @@ void handle_speed_change(struct sim_state *s, struct event *e){
 		HASH_DEL(s->conns, c);
 		free(c);
 		se->c = NULL;
-	}
+	}else
+		//Log speed change
+		write_record(0, R_SPD|se->type, se->c->conn_id, -1, &se->speed, s);
 }

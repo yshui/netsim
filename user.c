@@ -1,7 +1,7 @@
 #include "data.h"
 #include "range.h"
 #include "event.h"
-#include "statistic.h"
+#include "record.h"
 #include "connect.h"
 
 static void recalculate_user_events(struct spd_event *se, struct sim_state *s){
@@ -57,7 +57,6 @@ static void recalculate_user_events(struct spd_event *se, struct sim_state *s){
 void user_speed_change(struct event *e, struct sim_state *s){
 	//Recalculate event is enough
 	recalculate_user_events(e->data, s);
-	//Log speed change
 }
 
 void user_done(struct event *e, struct sim_state *s){

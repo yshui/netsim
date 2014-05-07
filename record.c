@@ -17,13 +17,19 @@
 struct record_disk{
 	uint8_t major;
 	uint8_t minor;
-	uint32_t node_id;
+	uint32_t id;
 	uint32_t time;
 	uint16_t utime;
+	int8_t bytes;
 };
 
-void write_record(uint8_t major, uint8_t minor, uint32_t node_id,
-		  int bytes, void *value, struct sim_state *s){
+void write_record(uint8_t major, uint8_t minor, uint32_t id,
+		  int8_t bytes, void *value, struct sim_state *s){
+	if (!s->record_head) {
+		log_debug("No record file opened, ignore record.");
+		return;
+	}
+
 	struct record_disk *r = s->record_tail;
 	assert(s->record_tail);
 
@@ -45,11 +51,13 @@ void write_record(uint8_t major, uint8_t minor, uint32_t node_id,
 
 	r->major = major;
 	r->minor = minor;
-	r->node_id = htonl(node_id);
+	r->id = htonl(id);
 	r->time = htonl((int)s->now);
 
 	uint16_t utime = (s->now-((int)s->now))*1000;
 	r->utime = htons(utime);
+
+	r->bytes = bytes;
 
 	union {
 		uint8_t *u8p;

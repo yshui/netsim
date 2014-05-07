@@ -12,12 +12,6 @@ struct flow;
 
 typedef unsigned int id_t;
 
-struct pricing {
-	double per_gb_bandwidth;
-	double per_gb_disk;
-	double per_hour;
-};
-
 struct range {
 	int start, len, total_len; //in Kbits
 	double grow; //grow speed, Kbits per second
@@ -103,7 +97,6 @@ struct node {
 	double total_bwupbound[2]; // sum of all bwupbound
 	void *user_data; //Used for calculate bandwidth between nodes
 	struct store *store;
-	struct pricing *p; //Pricing infomation
 	struct list_head conns[2]; //Nodes connected with this node
 	//Return true if the node decide to accept this request
 	id_t node_id;
@@ -167,15 +160,21 @@ struct event {
 #define R_SPEED_CHANGE 2
 
 struct sim_state {
+	//Time keeper:
 	double now;
 	struct skip_list_head events;
+	struct list_head handlers[LAST_EVENT];
+
+	//Hashes:
 	struct node *nodes;
 	struct flow *flows;
 	struct connection *conns;
-	struct list_head flows;
-	struct list_head handlers[LAST_EVENT];
+
+	//Record:
 	void *record_tail, *record_head;
 	int record_file_size, record_fd;
+
+	//User provided functions:
 	int (*bwcalc)(void *src, void *dst);
 	int (*dlycalc)(void *src, void *dst);
 	void (*evgen)(struct sim_state *s);
@@ -185,13 +184,13 @@ struct sim_state {
 
 static inline
 struct store *store_new(void){
-	struct store *s = calloc(1, sizeof(struct store));
+	struct store *s = talloc(1, struct store);
 	return s;
 }
 
 static inline
 struct event *event_new(double time, enum event_type t, void *d){
-	struct event *e = calloc(1, sizeof(struct event));
+	struct event *e = talloc(1, struct event);
 	e->time = time;
 	e->type = t;
 	e->data = d;
@@ -201,7 +200,7 @@ struct event *event_new(double time, enum event_type t, void *d){
 
 static inline
 struct range *range_new(int start){
-	struct range *rng = calloc(1, sizeof(struct range));
+	struct range *rng = talloc(1, struct range);
 	rng->start = start;
 	rng->len = 0;
 	return rng;
@@ -212,4 +211,19 @@ struct sim_state *sim_state_new(void){
 	struct sim_state *s = talloc(1, struct sim_state);
 	s->now = 0;
 	return s;
+}
+
+static inline
+struct node *node_new(void){
+	struct node *n = talloc(1, struct node);
+
+	n->total_bwupbound[0] = n->total_bwupbound[1] = 0;
+	n->state = N_OFFLINE;
+	n->maximum_bandwidth[0] = n->maximum_bandwidth[1] = 0;
+	INIT_LIST_HEAD(&n->conns[0]);
+	INIT_LIST_HEAD(&n->conns[1]);
+	n->bandwidth_usage[0] = n->bandwidth_usage[1] = 0;
+	n->store = store_new();
+
+	return n;
 }

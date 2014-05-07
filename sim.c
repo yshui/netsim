@@ -78,3 +78,15 @@ void sim_register_handler(int type, int priority, event_handler_func f,
 	else
 		list_add(&neh->handlers, eh->handlers.prev);
 }
+
+struct node *sim_create_node(struct sim_state *s){
+	struct node *n = node_new(), *on;
+
+	do {
+		n->node_id = random();
+		HASH_FIND_INT(s->nodes, &n->node_id, on);
+	}while(on);
+	HASH_ADD_INT(s->nodes, node_id, n);
+
+	return n;
+}

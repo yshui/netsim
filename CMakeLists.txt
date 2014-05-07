@@ -5,7 +5,8 @@ add_executable(netsim
 	range.c
 	user.c
 	main.c
-	statistic.c
+	record.c
 )
 target_link_libraries(netsim dl)
 
+add_subdirectory(modules)

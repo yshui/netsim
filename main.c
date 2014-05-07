@@ -2,6 +2,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <stdlib.h>
+#include <libgen.h>
 
 #include "data.h"
 #include "skiplist.h"
@@ -14,10 +15,12 @@ int main(int argc, const char **argv){
 		return 1;
 	}
 
-	char *tmp = malloc(strlen(argv[1])+6);
-	sprintf(tmp, "%s.so", argv[1]);
+	char *filename = strdup(argv[1]);
+	char *tmp = malloc(strlen(filename)+6);
+	sprintf(tmp, "%s.so", filename);
 	void *mhandle = dlopen(tmp, RTLD_LAZY);
-	sprintf(tmp, "%s_init", argv[1]);
+
+	sprintf(tmp, "%s_init", basename(filename));
 	void (*minit)(struct sim_state *s) = dlsym(mhandle, tmp);
 
 	struct sim_state *s = sim_state_new();
