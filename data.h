@@ -13,7 +13,7 @@ struct flow;
 typedef unsigned int id_t;
 
 struct range {
-	int start, len, total_len; //in Kbits
+	size_t start, len, total_len; //in Kbits
 	double grow; //grow speed, Kbits per second
 	double last_update;
 	struct skip_list_head ranges;
@@ -23,7 +23,7 @@ struct range {
 
 struct resource {
 	id_t resource_id;
-	int len;
+	size_t len;
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
 };
@@ -124,7 +124,7 @@ struct flow {
 enum event_type {
 	FLOW_DRAIN,
 	FLOW_DONE,
-	FLOW_SOURCE_THROTTLE, //Throttle flow speed 'cause source can't keep up
+	FLOW_SPEED_THROTTLE, //Throttle flow speed 'cause source can't keep up
 	PACKET_DONE,
 	SPEED_CHANGE,
 	USER,
@@ -175,9 +175,8 @@ struct sim_state {
 	int record_file_size, record_fd;
 
 	//User provided functions:
-	int (*bwcalc)(void *src, void *dst);
-	int (*dlycalc)(void *src, void *dst);
-	void (*evgen)(struct sim_state *s);
+	double (*bwcalc)(void *src, void *dst);
+	double (*dlycalc)(void *src, void *dst);
 };
 
 #define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
@@ -199,17 +198,22 @@ struct event *event_new(double time, enum event_type t, void *d){
 }
 
 static inline
-struct range *range_new(int start){
+struct range *range_new(size_t start, size_t len){
 	struct range *rng = talloc(1, struct range);
 	rng->start = start;
-	rng->len = 0;
+	rng->len = len;
+	INIT_LIST_HEAD(&rng->consumers);
 	return rng;
 }
 
 static inline
 struct sim_state *sim_state_new(void){
+	int i;
 	struct sim_state *s = talloc(1, struct sim_state);
+	skip_list_init_head(&s->events);
 	s->now = 0;
+	for(i = 0; i < LAST_EVENT; i++)
+		INIT_LIST_HEAD(&s->handlers[i]);
 	return s;
 }
 
@@ -226,4 +230,13 @@ struct node *node_new(void){
 	n->store = store_new();
 
 	return n;
+}
+
+static inline
+struct resource *resource_new(id_t id, size_t s){
+	struct resource *r = talloc(1, struct resource);
+	skip_list_init_head(&r->ranges);
+	r->len = s;
+	r->resource_id = id;
+	return r;
 }

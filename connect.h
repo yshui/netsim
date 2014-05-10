@@ -26,3 +26,5 @@ connection_speed_change_new(struct connection *c, double new_speed,
 inline void
 queue_speed_event(struct connection *c, int dir, int close,
 		  double speed, struct sim_state *s);
+
+void handle_speed_change(struct event *e, struct sim_state *s);

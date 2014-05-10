@@ -10,14 +10,14 @@
 struct range *range_get(struct resource *rsrc, int start){
 	struct skip_list_head *s = &rsrc->ranges, *r;
 	r = skip_list_find(s, &start, range_list_cmp);
-	return skip_list_entry(r, struct range, ranges);
+	return r ? skip_list_entry(r, struct range, ranges) : NULL;
 }
 
 //Calculate flow events. The flow structure must be fully populated.
 //Done event is when the drng reaches next range's beginning.
 //Drain event is when the end of srng is RECEIVED, so the delay should be
 //considered as well.
-//(note after drain event the srng may still be growing, so instead of closing 
+//(note after drain event the srng may still be growing, so instead of closing
 //the connection, we throttle the send speed).
 void range_calc_flow_events(struct flow *f){
 	if (f->bandwidth < eps)
@@ -25,14 +25,19 @@ void range_calc_flow_events(struct flow *f){
 	struct range *srng = f->srng;
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
+	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
 	double drain_time = (srng->len-drng_start)/
 			    (double)(srng->grow-f->bandwidth);
 
 	f->drain = f->done = NULL;
-	if (drain_time < srng->producer->done->time &&
-	    srng->grow < f->bandwidth+eps)
-		f->drain = event_new(drain_time, FLOW_SOURCE_THROTTLE, f);
+	if (!srng->producer)
+		//Don't have a producer, generate a DRAIN event
+		f->drain = event_new((srng->len-drng_start)/f->bandwidth, FLOW_DRAIN, f);
+	else if (drain_time < srng->producer->done->time &&
+		 srng->grow < f->bandwidth+eps)
+		//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
+		f->drain = event_new(drain_time, FLOW_SPEED_THROTTLE, f);
 
 	struct range *drng = f->drng;
 	assert(drng->producer == f);
@@ -43,7 +48,9 @@ void range_calc_flow_events(struct flow *f){
 	}else
 		npos = drng->total_len;
 	double done_time = (npos-drng->start-drng->len)/(double)f->bandwidth;
-	if (done_time < f->drain->time) {
+	//Less or equal to here, we always handle done event first. Since when
+	//its done, we don't need to deal with drain or throttle.
+	if (done_time < f->drain->time+eps) {
 		free(f->drain);
 		f->drain = NULL;
 		f->done = event_new(done_time, FLOW_DONE, f);

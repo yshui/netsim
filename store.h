@@ -8,3 +8,14 @@ store_get(struct store *s, int resource_id){
 	HASH_FIND_INT(s->rsrc_hash, &resource_id, r);
 	return r;
 }
+
+static inline int
+store_set(struct store *s, struct resource *rsrc){
+	struct resource *rr = NULL;
+	HASH_FIND_INT(s->rsrc_hash, &rsrc->resource_id, rr);
+	if (rr)
+		return -1;
+	HASH_ADD_INT(s->rsrc_hash, resource_id, rsrc);
+	s->total_size += rsrc->len;
+	return 0;
+}

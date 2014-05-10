@@ -16,7 +16,7 @@ struct skip_list_head {
 	container_of(ptr, type, member)
 
 #define skip_list_empty(ptr) \
-	((ptr)->next[0] == NULL)
+	((ptr)->next == NULL || (ptr)->next[0] == NULL)
 
 static inline void skip_list_init_head(struct skip_list_head *h){
 	h->h = MAX_HEIGHT;
@@ -36,6 +36,7 @@ static inline void skip_list_init_node(struct skip_list_head *n){
 	int newh = skip_list_gen_height();
 	if (newh > n->h)
 		n->next = realloc(n->next, sizeof(void *)*newh);
+	n->h = newh;
 	memset(n->next, 0, sizeof(void *)*newh);
 }
 
@@ -51,7 +52,8 @@ static inline void skip_list_previous(struct skip_list_head *head,
 	int h = head->h-1;
 	struct skip_list_head *n = head;
 	while(1){
-		while(h >= 0 && cmp(n->next[h], key) >= 0){
+		while(h >= 0 &&
+		     (n->next[h] == NULL || cmp(n->next[h], key) >= 0)){
 			res[h] = n;
 			h--;
 		}
@@ -73,7 +75,9 @@ skip_list_insert(struct skip_list_head *h, struct skip_list_head *n,
 		n->next[i] = hs[i]->next[i];
 		hs[i]->next[i] = n;
 	}
-	n->next[0]->prev = n;
+	if (n->next[0])
+		n->next[0]->prev = n;
+	n->prev = hs[0];
 }
 
 //Find the smallest element that is greater or equal to key.
@@ -102,13 +106,12 @@ skip_list_delete(struct skip_list_head *h, void *key, skip_list_cmp cmp){
 }
 
 
-static inline int
+static inline void
 skip_list_delete_next(struct skip_list_head *h){
 	int i;
 	struct skip_list_head *next = h->next[0];
 	for(i = next->h-1; i >= 0; i--)
 		h->next[i] = next->next[i];
-	return 0;
 }
 
 static inline void

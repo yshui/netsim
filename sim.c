@@ -5,13 +5,13 @@
 #include "event.h"
 #include "sim.h"
 #include "connect.h"
-#include "node.h"
+#include "range.h"
 
 const double eps = 1e-6;
 int global_log_level = LOG_INFO;
 
-void sim_send_packet(struct sim_state *s, void *data, int len,
-		     struct node *src, struct node *dst){
+void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
+		     struct sim_state *s){
 	double delay = s->dlycalc(src->user_data, dst->user_data);
 	struct packet *p = calloc(1, sizeof(struct packet));
 	p->src = src;
@@ -22,32 +22,40 @@ void sim_send_packet(struct sim_state *s, void *data, int len,
 	event_add(e, s);
 }
 
-int sim_establish_flow(struct sim_state *s, int rid, int start,
-			struct node *src, struct node *dst){
-	struct resource *rsrc = store_get(dst->store, rid);
-	struct range *rng = range_get(rsrc, start);
+int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *dst,
+		       struct sim_state *s){
+	struct resource *sr = store_get(src->store, rid);
+	if (!sr) {
+		log_err("The resource %d doesn't exist on source node %d\n", rid, src->node_id);
+		return -1;
+	}
+	struct resource *dr = store_get(dst->store, rid);
+	if (!dr) {
+		//The resource doesn't exist on the dst yet, create it
+		dr = resource_new(sr->resource_id, sr->len);
+		store_set(dst->store, dr);
+	}
+	struct range *rng = range_get(dr, start);
 	if (rng) {
-		log_err("Trying to create a flow to a existing range.");
+		log_err("Trying to create a flow to a existing range.\n");
 		return -1;
 	}
 
-	struct flow *nf = calloc(1, sizeof(struct flow));
-	struct resource *r = store_get(src->store, rid);
-	if (!r)
-		return -1;
-	rng = range_get(r, start);
+	struct flow *nf = talloc(1, struct flow);
+	rng = range_get(sr, start);
 	struct connection *c = connection_create(src, dst, s);
 
 	nf->begin_time = s->now;
 	nf->start = start;
 	nf->src = src;
 	nf->dst = dst;
-	nf->drng = node_new_range(dst, rid, start);
+	nf->drng = node_new_range(dst, rid, start, 0);
 	nf->drng->producer = nf;
 	nf->srng = rng;
 	nf->resource_id = rid;
-	nf->bandwidth = c->speed[1];
+	nf->bandwidth = 0;
 	nf->c = c;
+	c->f = nf;
 	range_calc_flow_events(nf);
 	list_add(&nf->consumers, &rng->consumers);
 
@@ -89,4 +97,18 @@ struct node *sim_create_node(struct sim_state *s){
 	HASH_ADD_INT(s->nodes, node_id, n);
 
 	return n;
+}
+
+//Create a new resource on a node, this node will immediately have a whole
+//copy of the resource
+struct resource *sim_node_new_resource(struct node *n, size_t len, struct sim_state *s){
+	if (!n->store)
+		n->store = store_new();
+	struct resource *r = resource_new(random(), len);
+
+	while(store_set(n->store, r) == -1)
+		r->resource_id = random();
+
+	resource_new_range(r, 0, len);
+	return r;
 }
