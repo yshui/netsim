@@ -1,2 +1,8 @@
 tags
+*.so
+netsim
+CMakeFiles
+CMakeCache.txt
+Makefile
 *~
+

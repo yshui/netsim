@@ -4,12 +4,7 @@
 #include "record.h"
 #include "connect.h"
 
-static void recalculate_user_events(struct spd_event *se, struct sim_state *s){
-	if (!se->c) {
-		//The connection is closed, so don't do anything
-		return;
-	}
-	struct flow *f = se->c->f;
+static void recalculate_user_events(struct flow *f, struct sim_state *s){
 	struct range *rng = f->srng;
 	struct def_user *d = f->dst->user_data;
 	d->next_state = f->dst->state;

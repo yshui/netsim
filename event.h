@@ -1,4 +1,10 @@
 #pragma once
+
+#ifndef LOG_DOMAIN
+# define LOG_DOMAIN "event"
+#endif
+
+#include "log.h"
 #include "skiplist.h"
 #include "data.h"
 
@@ -24,6 +30,7 @@ static inline int event_cmp(struct skip_list_head *h, void *_key){
 static inline void event_add(struct event *e, struct sim_state *s){
 	if (!e)
 		return;
+	log_info("Event add %d %lf\n", e->type, e->time);
 	e->qtime = s->now;
 	skip_list_insert(&s->events, &e->events, &e->time, event_cmp);
 }

@@ -65,10 +65,10 @@ double bwspread(struct connection *c, double amount, int dir,
 			//already exceeded it share.
 			//Event is queued to notify the other end the change
 			//is not possible
-			queue_speed_event(c, !dir, 0, -amount, s);
+			queue_speed_event(c, !dir, 0, c->speed[dir], s);
 			return 0;
 		}
-		queue_speed_event(c, !dir, 0, share-c->speed[dir]-amount, s);
+		queue_speed_event(c, !dir, 0, share, s);
 		amount = share-c->speed[dir];
 	}
 
@@ -126,13 +126,13 @@ double bwspread(struct connection *c, double amount, int dir,
 				delta = lshare - nc->speed[dir];
 				nc->speed[dir] -= amount*delta/e;
 				//queue speed increase event to the other end
-				queue_speed_event(c, !dir, 0, -amount*delta/e, s);
+				queue_speed_event(c, !dir, 0, nc->speed[dir], s);
 			}
 		} else if (amount > eps && nc->speed[dir] > lshare) {
 			delta = nc->speed[dir]-lshare;
 			nc->speed[dir] -= spread_amount*delta/e;
 			//queue speed decrease event to the other end
-			queue_speed_event(c, !dir, 0, -spread_amount*delta/e, s);
+			queue_speed_event(c, !dir, 0, nc->speed[dir], s);
 			//e > spread_amount is impossible, otherwise this
 			//connection's speed would exceed its share.
 		}
@@ -218,6 +218,8 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	c->pending_event[!se->type] = 0;
 	f->bandwidth = c->speed[se->type];
 
+	list_del(&se->spd_evs);
+
 	if (se->type == P_RCV){
 		//Update the flow and its drng
 		struct range *rng = f->drng;
@@ -236,7 +238,7 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		event_add(f->done, s);
 		event_add(f->drain, s);
 
-		range_update_consumer_events(rng, s);
+		range_update_consumer_events(f->drng, s);
 	}
 
 
@@ -251,13 +253,13 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		int dir = se->type;
 		//Unqueue all of its events.
 		while(!list_empty(h)){
-			struct spd_event *se =
+			struct spd_event *tse =
 				list_first_entry(h, struct spd_event, spd_evs);
 			//list_del(h->next);
-			list_del(&se->spd_evs);
-			event_remove(se->e);
-			free(se->e);
-			free(se);
+			list_del(&tse->spd_evs);
+			event_remove(tse->e);
+			free(tse->e);
+			free(tse);
 		}
 
 		//Log connection close

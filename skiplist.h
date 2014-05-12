@@ -59,7 +59,7 @@ static inline void skip_list_previous(struct skip_list_head *head,
 		}
 		if (h < 0)
 			break;
-		while(cmp(n->next[h], key) < 0)
+		while(n->next[h] && cmp(n->next[h], key) < 0)
 			n = n->next[h];
 	}
 }
@@ -95,7 +95,7 @@ skip_list_delete(struct skip_list_head *h, void *key, skip_list_cmp cmp){
 	struct skip_list_head *hs[MAX_HEIGHT];
 	skip_list_previous(h, key, cmp, hs);
 	struct skip_list_head *node = hs[0]->next[0];
-	if (cmp(node, key) != 0)
+	if (!node || cmp(node, key) != 0)
 		return -1;
 	for(i = node->h-1; i >= 0; i--)
 		hs[i]->next[i] = node->next[i];
@@ -112,6 +112,8 @@ skip_list_delete_next(struct skip_list_head *h){
 	struct skip_list_head *next = h->next[0];
 	for(i = next->h-1; i >= 0; i--)
 		h->next[i] = next->next[i];
+	if (next->next[0])
+		next->next[0]->prev = h;
 }
 
 static inline void

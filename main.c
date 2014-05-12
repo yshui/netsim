@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <libgen.h>
 
+#define LOG_DOMAIN "main"
+
+#include "log.h"
 #include "data.h"
 #include "skiplist.h"
 #include "event.h"
@@ -43,6 +46,8 @@ int main(int argc, const char **argv){
 
 	while(!skip_list_empty(&s->events)){
 		struct event *e = event_pop(s);
+		s->now = e->time;
+		log_info("Pop event %d %lf\n", e->type, e->time);
 		struct event_handler *eh;
 		list_for_each_entry(eh, &s->handlers[e->type], handlers)
 			eh->f(e, s);

@@ -88,6 +88,7 @@ struct def_user {
 	//high water mark: start playing
 	int highwm, lowwm;
 	int buffer_pos;
+	struct node *n;
 	struct event *e;
 };
 
@@ -136,6 +137,7 @@ typedef void (*event_handler_func)(struct event *, struct sim_state *);
 enum handler_priority {
 	HNDR_DEFAULT = 0,
 	HNDR_USER,
+	HNDR_CLEANER, //Free spaces and stuff
 };
 
 struct event_handler{

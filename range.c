@@ -20,6 +20,7 @@ struct range *range_get(struct resource *rsrc, int start){
 //(note after drain event the srng may still be growing, so instead of closing
 //the connection, we throttle the send speed).
 void range_calc_flow_events(struct flow *f){
+	f->drain = f->done = NULL;
 	if (f->bandwidth < eps)
 		return;
 	struct range *srng = f->srng;
@@ -30,7 +31,6 @@ void range_calc_flow_events(struct flow *f){
 	double drain_time = (srng->len-drng_start)/
 			    (double)(srng->grow-f->bandwidth);
 
-	f->drain = f->done = NULL;
 	if (!srng->producer)
 		//Don't have a producer, generate a DRAIN event
 		f->drain = event_new((srng->len-drng_start)/f->bandwidth, FLOW_DRAIN, f);
