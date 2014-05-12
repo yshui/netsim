@@ -46,6 +46,10 @@ int main(int argc, const char **argv){
 
 	while(!skip_list_empty(&s->events)){
 		struct event *e = event_pop(s);
+		if (s->now > e->time) {
+			log_err("Time travaling! %lf -> %lf\n", s->now, e->time);
+			abort();
+		}
 		s->now = e->time;
 		log_info("Pop event %d %lf\n", e->type, e->time);
 		struct event_handler *eh;

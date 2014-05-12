@@ -45,7 +45,7 @@ struct node *test_create_node(struct sim_state *s){
 	return n;
 }
 
-void test02_init(struct sim_state *s){
+void test03_init(struct sim_state *s){
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 
@@ -58,7 +58,7 @@ void test02_init(struct sim_state *s){
 	sim_register_handler(USER, HNDR_USER, test_user_event, s);
 	sim_register_handler(SPEED_CHANGE, HNDR_USER, test_sc, s);
 
-	server->maximum_bandwidth[0] = server->maximum_bandwidth[1] = 5000;
+	server->maximum_bandwidth[0] = server->maximum_bandwidth[1] = 1000;
 	client->maximum_bandwidth[0] = client->maximum_bandwidth[1] = 1000;
 	client2->maximum_bandwidth[0] = client2->maximum_bandwidth[1] = 1000;
 
@@ -66,7 +66,7 @@ void test02_init(struct sim_state *s){
 
 	sim_establish_flow(r->resource_id, 0, server, client, s);
 
-	struct event *e = event_new(5000, USER, NULL);
+	struct event *e = event_new(2000, USER, NULL);
 	event_add(e, s);
 
 }

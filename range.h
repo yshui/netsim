@@ -5,8 +5,8 @@
 #include "event.h"
 
 struct range *range_get(struct resource *rsrc, int start);
-void range_calc_flow_events(struct flow *f);
-void range_merge_with_next(struct range *rng);
+void range_calc_flow_events(struct flow *f, double now);
+void range_merge_with_next(struct range *rng, struct sim_state *s);
 
 __attribute__((pure))
 static inline int range_list_cmp(struct skip_list_head *a, void *_key){
@@ -29,7 +29,7 @@ static inline void range_update_consumer_events(struct range *rng, struct sim_st
 		free(f->done);
 		free(f->drain);
 
-		range_calc_flow_events(f);
+		range_calc_flow_events(f, s->now);
 
 		event_add(f->done, s);
 		event_add(f->drain, s);

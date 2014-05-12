@@ -56,7 +56,7 @@ int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *ds
 	nf->bandwidth = 0;
 	nf->c = c;
 	c->f = nf;
-	range_calc_flow_events(nf);
+	range_calc_flow_events(nf, s->now);
 	list_add(&nf->consumers, &rng->consumers);
 
 	id_t rand = random();

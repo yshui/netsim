@@ -11,7 +11,7 @@ void flow_done_handler(struct event *e, struct sim_state *s){
 	f->done = NULL;
 	f->drng->len += f->bandwidth*(s->now-f->drng->last_update);
 	f->drng->last_update = s->now;
-	range_merge_with_next(f->drng);
+	range_merge_with_next(f->drng, s);
 	connection_close(f->c, P_RCV, s);
 }
 
@@ -30,5 +30,5 @@ void flow_throttle_handler(struct event *e, struct sim_state *s){
 	//Recalculate the drain and done event
 	event_remove(f->done);
 	event_remove(f->drain);
-	range_calc_flow_events(f);
+	range_calc_flow_events(f, s->now);
 }

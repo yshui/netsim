@@ -7,3 +7,6 @@ set_target_properties(test01 PROPERTIES PREFIX "")
 
 add_library(test02 SHARED test02.c)
 set_target_properties(test02 PROPERTIES PREFIX "")
+
+add_library(test03 SHARED test03.c)
+set_target_properties(test03 PROPERTIES PREFIX "")

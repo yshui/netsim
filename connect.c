@@ -79,11 +79,13 @@ double bwspread(struct connection *c, double amount, int dir,
 		//we know the speed limit of the peer won't be exceeded.
 		return amount;
 
-	if (amount > eps && used+amount < max) {
+	if (amount > eps && used+amount < max+eps) {
 		//There're enough free bandwidth
 		n->bandwidth_usage[dir] += amount;
 		return amount;
 	}
+	if (used < max)
+		n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
 
 	/* Gather/Spread the amount needed */
 	struct connection *nc;
@@ -100,7 +102,7 @@ double bwspread(struct connection *c, double amount, int dir,
 		//
 		//	 = share of connection on this end
 		//	   when amount > 0;
-		double lshare = nc->bwupbound*total/max;
+		double lshare = nc->bwupbound*max/total;
 		if (amount < eps) {
 			lshare = get_share(nc, !dir);
 			if (nc->speed[dir] < lshare)
@@ -126,13 +128,13 @@ double bwspread(struct connection *c, double amount, int dir,
 				delta = lshare - nc->speed[dir];
 				nc->speed[dir] -= amount*delta/e;
 				//queue speed increase event to the other end
-				queue_speed_event(c, !dir, 0, nc->speed[dir], s);
+				queue_speed_event(nc, !dir, 0, nc->speed[dir], s);
 			}
 		} else if (amount > eps && nc->speed[dir] > lshare) {
 			delta = nc->speed[dir]-lshare;
 			nc->speed[dir] -= spread_amount*delta/e;
 			//queue speed decrease event to the other end
-			queue_speed_event(c, !dir, 0, nc->speed[dir], s);
+			queue_speed_event(nc, !dir, 0, nc->speed[dir], s);
 			//e > spread_amount is impossible, otherwise this
 			//connection's speed would exceed its share.
 		}
@@ -234,7 +236,7 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		event_remove(f->drain);
 		free(f->done);
 		free(f->drain);
-		range_calc_flow_events(f);
+		range_calc_flow_events(f, s->now);
 		event_add(f->done, s);
 		event_add(f->drain, s);
 
@@ -280,7 +282,6 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		list_del(&c->conns[dir]);
 		HASH_DEL(s->conns, c);
 		free(c);
-		se->c = NULL;
 	}else
 		//Log speed change
 		write_record(0, R_SPD|se->type, se->c->conn_id, -1, &se->speed, s);
