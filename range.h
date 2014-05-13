@@ -26,8 +26,8 @@ static inline void range_update_consumer_events(struct range *rng, struct sim_st
 	list_for_each_entry(f, &rng->consumers, consumers){
 		event_remove(f->done);
 		event_remove(f->drain);
-		free(f->done);
-		free(f->drain);
+		event_free(f->done);
+		event_free(f->drain);
 
 		range_calc_flow_events(f, s->now);
 

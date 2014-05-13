@@ -28,3 +28,4 @@ queue_speed_event(struct connection *c, int dir, int close,
 		  double speed, struct sim_state *s);
 
 void handle_speed_change(struct event *e, struct sim_state *s);
+void speed_change_free(struct event *e, struct sim_state *s);

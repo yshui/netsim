@@ -41,6 +41,7 @@ int main(int argc, const char **argv){
 
 	//Register some default handlers
 	sim_register_handler(SPEED_CHANGE, HNDR_DEFAULT, handle_speed_change, s);
+	sim_register_handler(SPEED_CHANGE, HNDR_CLEANER, speed_change_free, s);
 	sim_register_handler(FLOW_DONE, HNDR_DEFAULT, flow_done_handler, s);
 	sim_register_handler(FLOW_SPEED_THROTTLE, HNDR_DEFAULT, flow_throttle_handler, s);
 
@@ -51,7 +52,7 @@ int main(int argc, const char **argv){
 			abort();
 		}
 		s->now = e->time;
-		log_info("Pop event %d %lf\n", e->type, e->time);
+		log_debug("Pop event %d %lf\n", e->type, e->time);
 		struct event_handler *eh;
 		list_for_each_entry(eh, &s->handlers[e->type], handlers)
 			eh->f(e, s);

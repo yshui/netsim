@@ -147,9 +147,9 @@ double bwspread(struct connection *c, double amount, int dir,
 //I think the closing is always initiated by dst, but..
 void connection_close(struct connection *c, int dir, struct sim_state *s){
 	//Spread the bandwidth to remaining connections.
+	c->peer[dir]->total_bwupbound[dir] -= c->bwupbound;
 	bwspread(c, c->speed[dir], dir, 1, s);
 	list_del(&c->conns[dir]);
-	c->peer[dir]->total_bwupbound[0] -= c->bwupbound;
 	//Queue event to notify the connection is closed.
 	queue_speed_event(c, !dir, 1, c->speed[!dir], s);
 
@@ -215,6 +215,10 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	//if (e->qtime < se->c->pending_event[se->type])
 	//	return;
 
+	if (se->close)
+		se->c->peer[se->type]->total_bwupbound[se->type] -=
+			se->c->bwupbound;
+
 	bwspread(se->c, se->speed-se->c->speed[se->type], se->type, se->close, s);
 	//The pending event has been handled now.
 	c->pending_event[!se->type] = 0;
@@ -234,8 +238,8 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 
 		event_remove(f->done);
 		event_remove(f->drain);
-		free(f->done);
-		free(f->drain);
+		event_free(f->done);
+		event_free(f->drain);
 		range_calc_flow_events(f, s->now);
 		event_add(f->done, s);
 		event_add(f->drain, s);
@@ -250,7 +254,6 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		     &n->bandwidth_usage[se->type], s);
 
 	if (se->close) {
-		c->peer[se->type]->total_bwupbound[se->type] -= c->speed[se->type];
 		struct list_head *h = &c->spd_evs;
 		int dir = se->type;
 		//Unqueue all of its events.
@@ -273,16 +276,22 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		f->drng->producer = NULL;
 		event_remove(f->done);
 		event_remove(f->drain);
-		free(f->done);
-		free(f->drain);
+		event_free(f->done);
+		event_free(f->drain);
 		HASH_DEL(s->flows, f);
 		free(f);
 
-		//Close the corresponding flow
+		//Close the corresponding connection
 		list_del(&c->conns[dir]);
 		HASH_DEL(s->conns, c);
-		free(c);
 	}else
 		//Log speed change
 		write_record(0, R_SPD|se->type, se->c->conn_id, -1, &se->speed, s);
+}
+
+void speed_change_free(struct event *e, struct sim_state *s){
+	struct spd_event *se = e->data;
+	if (se->close)
+		free(se->c);
+	free(se);
 }

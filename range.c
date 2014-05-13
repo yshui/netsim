@@ -53,9 +53,10 @@ void range_calc_flow_events(struct flow *f, double now){
 	//Less or equal to here, we always handle done event first. Since when
 	//its done, we don't need to deal with drain or throttle.
 	if (done_time < f->drain->time+eps) {
-		free(f->drain);
+		f->done = f->drain;
 		f->drain = NULL;
-		f->done = event_new(now+done_time, FLOW_DONE, f);
+		f->done->time = now+done_time;
+		f->done->type = FLOW_DONE;
 	}else
 		f->done = NULL;
 }
@@ -73,32 +74,23 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	rng->len = nrng->start-rng->start+nrng->len;
 	rng->grow = nrng->grow;
 
-	struct flow *f;
-	list_for_each_entry(f, &rng->consumers, consumers){
-		event_remove(f->drain);
-		event_remove(f->done);
-		free(f->drain);
-		free(f->done);
-		range_calc_flow_events(f, s->now);
-		event_add(f->drain, s);
-		event_add(f->done, s);
-	}
-
-	list_for_each_entry(f, &nrng->consumers, consumers){
-		event_remove(f->drain);
-		event_remove(f->done);
-		free(f->drain);
-		free(f->done);
-		range_calc_flow_events(f, s->now);
-		event_add(f->drain, s);
-		event_add(f->done, s);
-	}
-
 	while(!list_empty(&nrng->consumers)){
 		struct list_head *h = nrng->consumers.next;
 		list_del(h);
 		list_add(h, &rng->consumers);
 	}
 
-	skip_list_delete_next(&rng->ranges);
+	struct flow *f;
+	list_for_each_entry(f, &rng->consumers, consumers){
+		event_remove(f->drain);
+		event_remove(f->done);
+		event_free(f->drain);
+		event_free(f->done);
+		range_calc_flow_events(f, s->now);
+		event_add(f->drain, s);
+		event_add(f->done, s);
+	}
+
+	skip_list_delete(nh);
+	free(nrng);
 }

@@ -1,12 +1,11 @@
 include_directories("../")
-add_library(test00 SHARED test00.c)
-set_target_properties(test00 PROPERTIES PREFIX "")
+macro(new_module n)
+	add_library(${n} SHARED "${n}.c")
+	set_target_properties(${n} PROPERTIES PREFIX "")
+endmacro()
 
-add_library(test01 SHARED test01.c)
-set_target_properties(test01 PROPERTIES PREFIX "")
-
-add_library(test02 SHARED test02.c)
-set_target_properties(test02 PROPERTIES PREFIX "")
-
-add_library(test03 SHARED test03.c)
-set_target_properties(test03 PROPERTIES PREFIX "")
+new_module("test00")
+new_module("test01")
+new_module("test02")
+new_module("test03")
+new_module("test04")

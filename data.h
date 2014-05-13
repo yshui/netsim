@@ -181,7 +181,6 @@ struct sim_state {
 	double (*dlycalc)(void *src, void *dst);
 };
 
-#define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
 
 static inline
 struct store *store_new(void){
@@ -197,6 +196,13 @@ struct event *event_new(double time, enum event_type t, void *d){
 	e->data = d;
 	//e->s = NULL;
 	return e;
+}
+
+static inline void event_free(struct event *e){
+	if (!e)
+		return;
+	skip_list_node_free(&e->events);
+	free(e);
 }
 
 static inline
