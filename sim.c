@@ -8,7 +8,6 @@
 #include "range.h"
 
 const double eps = 1e-6;
-int global_log_level = LOG_INFO;
 
 void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 		     struct sim_state *s){

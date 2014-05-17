@@ -17,7 +17,7 @@ int cmp(struct skip_list_head *a, void *key){
 }
 #define NK (random()%1000)
 int main(){
-	int count=20000, i;
+	int count=200000, i;
 	struct skip_list_head head;
 	skip_list_init_head(&head);
 	for(i=0; i<count; i++) {
@@ -25,7 +25,7 @@ int main(){
 		nx->key = NK;
 		skip_list_insert(&head, &nx->h, &nx->key, cmp);
 		log_debug("Inserting %d\n", nx->key);
-		int dr = random()%3;
+		int dr = random()%6;
 		if(dr == 2){
 			int kkk = NK;
 			struct skip_list_head *kk = skip_list_find(&head, &kkk, cmp);

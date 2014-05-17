@@ -31,10 +31,7 @@ void test_user_event(struct event *e, struct sim_state *s){
 
 void test_sc(struct event *e, struct sim_state *s){
 	struct spd_event *se = e->data;
-	if (se->close)
-		log_info("Connection %d -> %d closed\n", se->c->peer[0]->node_id, se->c->peer[1]->node_id);
-	else
-		log_info("Node %d dir %d speed %lf\n", se->c->peer[se->type]->node_id, se->type, se->speed);
+	log_info("Node %d dir %d speed %lf\n", se->c->peer[se->type]->node_id, se->type, se->speed);
 }
 
 struct node *test_create_node(struct sim_state *s){

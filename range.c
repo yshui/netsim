@@ -30,7 +30,7 @@ void range_calc_flow_events(struct flow *f, double now){
 	int npos;
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
-	double drain_time = (srng->len-drng_start)/
+	double drain_time = (srng->len-drng_start+1)/
 			    (double)(srng->grow-f->bandwidth);
 
 	if (!srng->producer)
@@ -61,6 +61,18 @@ void range_calc_flow_events(struct flow *f, double now){
 		f->done = NULL;
 }
 
+void range_calc_and_queue_event(struct flow *f, struct sim_state *s){
+	if (!f)
+		return;
+	event_remove(f->done);
+	event_remove(f->drain);
+	event_free(f->done);
+	event_free(f->drain);
+	range_calc_flow_events(f, s->now);
+	event_add(f->done, s);
+	event_add(f->drain, s);
+}
+
 //Merge a range with its successor, must be called after every ranges' length
 //is updated.
 void range_merge_with_next(struct range *rng, struct sim_state *s){
@@ -71,8 +83,16 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 
 	struct range *nrng = skip_list_entry(nh, struct range, ranges);
 	assert(rng->start+rng->len == nrng->start);
+	//Update next range
+
 	rng->len = nrng->start-rng->start+nrng->len;
 	rng->grow = nrng->grow;
+
+	rng->producer = nrng->producer;
+	rng->producer->drng = rng;
+	range_update(rng->producer->srng, s);
+	range_update(rng->producer->drng, s);
+	range_calc_and_queue_event(rng->producer, s);
 
 	while(!list_empty(&nrng->consumers)){
 		struct list_head *h = nrng->consumers.next;
@@ -81,16 +101,10 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	}
 
 	struct flow *f;
-	list_for_each_entry(f, &rng->consumers, consumers){
-		event_remove(f->drain);
-		event_remove(f->done);
-		event_free(f->drain);
-		event_free(f->done);
-		range_calc_flow_events(f, s->now);
-		event_add(f->drain, s);
-		event_add(f->done, s);
-	}
+	list_for_each_entry(f, &rng->consumers, consumers)
+		range_calc_and_queue_event(f, s);
 
 	skip_list_delete(nh);
 	free(nrng);
 }
+

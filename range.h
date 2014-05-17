@@ -7,6 +7,7 @@
 struct range *range_get(struct resource *rsrc, int start);
 void range_calc_flow_events(struct flow *f, double now);
 void range_merge_with_next(struct range *rng, struct sim_state *s);
+void range_calc_and_queue_event(struct flow *f, struct sim_state *s);
 
 __attribute__((pure))
 static inline int range_list_cmp(struct skip_list_head *a, void *_key){
@@ -23,17 +24,8 @@ static inline int range_list_cmp(struct skip_list_head *a, void *_key){
 
 static inline void range_update_consumer_events(struct range *rng, struct sim_state *s){
 	struct flow *f;
-	list_for_each_entry(f, &rng->consumers, consumers){
-		event_remove(f->done);
-		event_remove(f->drain);
-		event_free(f->done);
-		event_free(f->drain);
-
-		range_calc_flow_events(f, s->now);
-
-		event_add(f->done, s);
-		event_add(f->drain, s);
-	}
+	list_for_each_entry(f, &rng->consumers, consumers)
+		range_calc_and_queue_event(f, s);
 }
 
 static inline struct range *
@@ -53,4 +45,9 @@ static inline struct range *node_new_range(struct node *n, int resource_id,
 					   size_t start, size_t len){
 	struct resource *r = store_get(n->store, resource_id);
 	return resource_new_range(r, start, len);
+}
+
+static inline void range_update(struct range *r, struct sim_state *s){
+	r->len += r->grow*(s->now-r->last_update)+eps;
+	r->last_update = s->now;
 }

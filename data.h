@@ -43,6 +43,7 @@ struct connection {
 	double delay;
 	//when will the last event sent by [dir] reach [!dir]
 	double pending_event[2];
+	int closing;
 	//outbound/src/snd = [0], inbound/dst/rcv = [1]
 	//{inbound,outbound}_max = sum of bwupbound
 	//When {inbound,outbound}_max < {inbound,outbound}, all connections
@@ -201,7 +202,6 @@ struct event *event_new(double time, enum event_type t, void *d){
 static inline void event_free(struct event *e){
 	if (!e)
 		return;
-	skip_list_node_free(&e->events);
 	free(e);
 }
 

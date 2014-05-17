@@ -26,7 +26,7 @@ struct record_disk{
 void write_record(uint8_t major, uint8_t minor, uint32_t id,
 		  int8_t bytes, void *value, struct sim_state *s){
 	if (!s->record_head) {
-		log_debug("No record file opened, ignore record.");
+		log_debug("No record file opened, ignore record.\n");
 		return;
 	}
 

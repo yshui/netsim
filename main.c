@@ -15,6 +15,8 @@
 #include "connect.h"
 #include "flow.h"
 
+int global_log_level = LOG_INFO;
+
 int main(int argc, const char **argv){
 	if (argc != 2){
 		fprintf(stderr, "Usage: %s module\n", argv[0]);
@@ -43,6 +45,7 @@ int main(int argc, const char **argv){
 	sim_register_handler(SPEED_CHANGE, HNDR_DEFAULT, handle_speed_change, s);
 	sim_register_handler(SPEED_CHANGE, HNDR_CLEANER, speed_change_free, s);
 	sim_register_handler(FLOW_DONE, HNDR_DEFAULT, flow_done_handler, s);
+	sim_register_handler(FLOW_DONE, HNDR_CLEANER, flow_done_cleaner, s);
 	sim_register_handler(FLOW_SPEED_THROTTLE, HNDR_DEFAULT, flow_throttle_handler, s);
 
 	while(!skip_list_empty(&s->events)){
