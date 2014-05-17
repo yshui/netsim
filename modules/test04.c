@@ -41,7 +41,9 @@ void test_user_event(struct event *e, struct sim_state *s){
 void test_sc(struct event *e, struct sim_state *s){
 	struct spd_event *se = e->data;
 	int t = se->type;
-	log_info("[%.06lf] Node %d -> %d dir %d speed %lf\n", s->now, se->c->peer[0]->node_id, se->c->peer[1]->node_id, t, se->speed);
+	log_info("[%.06lf] Node %d -> %d dir %d se->speed %lf result speed %lf\n",
+		 s->now, se->c->peer[0]->node_id, se->c->peer[1]->node_id, t,
+		 se->speed, se->c->speed[se->type]);
 }
 
 struct node *test_create_node(struct sim_state *s){

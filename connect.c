@@ -80,6 +80,11 @@ double bwspread(struct connection *c, double amount, int dir,
 		log_info("Share exceeded, New amount: %lf\n", amount);
 	}
 
+	if (amount > -eps && amount < eps) {
+		log_info("amount = %lf, nothing to do.\n", amount);
+		return 0;
+	}
+
 	c->speed[dir] += amount;
 	/* Special Cases */
 	if (total < max+eps) {
@@ -95,14 +100,14 @@ double bwspread(struct connection *c, double amount, int dir,
 			 max, total+c->bwupbound);
 	}
 
-	if (amount > eps && used+amount < max+eps) {
+	if (amount > -eps && used+amount < max+eps) {
 		log_info("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
 		//There're enough free bandwidth
 		n->bandwidth_usage[dir] += amount;
 		return amount;
 	}
 	if (used < max) {
-		log_info("used(%lf) < max(%lf), bwspread stop\n", used, max);
+		log_info("used(%lf) < max(%lf)\n", used, max);
 		n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
 	}
 
@@ -215,8 +220,10 @@ void connection_close(struct connection *c, struct sim_state *s){
 	}
 
 	//Close the flow
-	f->drng->grow = 0;
-	f->drng->producer = NULL;
+	if (f->drng && f->drng->producer == f) {
+		f->drng->grow = 0;
+		f->drng->producer = NULL;
+	}
 	list_del(&f->consumers);
 	event_remove(f->done);
 	event_remove(f->drain);
@@ -288,7 +295,6 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	bwspread(se->c, se->speed-se->c->speed[se->type], se->type, 0, s);
 	//The pending event has been handled now.
 	c->pending_event[!se->type] = 0;
-	f->bandwidth = c->speed[se->type];
 
 	list_del(&se->spd_evs);
 
