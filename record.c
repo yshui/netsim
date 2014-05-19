@@ -106,7 +106,7 @@ void open_record(const char *filename, int create, struct sim_state *s){
 		return;
 	}
 
-	int fd = open(filename, O_RDWR);
+	int fd = open(filename, O_RDWR, 0644);
 	if (fd < 0) {
 		if (errno == ENOENT && create) {
 			fd = open(filename, O_RDWR|O_CREAT|O_EXCL);

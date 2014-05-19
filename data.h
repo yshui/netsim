@@ -82,13 +82,27 @@ enum node_state {
 	N_IDLE,
 };
 
+enum ue_type {
+	DONE_PLAY,
+	PAUSE_BUFFERING,
+	DONE_BUFFERING,
+};
+
+struct user_event {
+	int type;
+	void *data;
+};
+
 struct def_user {
 	double bit_rate;
 	enum node_state next_state;
+	void *trigger;
 	//low water mark: stop playing
 	//high water mark: start playing
 	int highwm, lowwm;
 	int buffer_pos;
+	int resource;
+	double last_update, last_speed;
 	struct node *n;
 	struct event *e;
 };
@@ -152,6 +166,7 @@ struct event {
 	//time: when will the event be triggered
 	//qtime: when is this event queued
 	double time, qtime;
+	bool active;
 	void *data;
 	//struct sim_state *s;
 	struct skip_list_head events;
@@ -195,6 +210,7 @@ struct event *event_new(double time, enum event_type t, void *d){
 	e->time = time;
 	e->type = t;
 	e->data = d;
+	e->active = false;
 	//e->s = NULL;
 	return e;
 }
@@ -247,4 +263,21 @@ struct resource *resource_new(id_t id, size_t s){
 	r->len = s;
 	r->resource_id = id;
 	return r;
+}
+
+static inline
+const char *strstate(int state){
+	switch(state){
+		case N_DONE:
+			return "Done";
+		case N_PLAYING:
+			return "Playing";
+		case N_IDLE:
+			return "Idle";
+		case N_STALE:
+			return "Stale";
+		case N_OFFLINE:
+			return "Offline";
+	}
+	return NULL;
 }

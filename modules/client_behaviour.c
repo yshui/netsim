@@ -1,0 +1,70 @@
+#include "sim.h"
+#include "connect.h"
+#include "store.h"
+#include "range.h"
+#include "user.h"
+#include "skiplist.h"
+#include "record.h"
+
+#include "common.h"
+
+void client_next_state_from_event(struct event *e, struct sim_state *s){
+	struct user_event *ue = e->data;
+	struct flow *f = ue->data;
+	struct node *n = f->dst;
+	struct def_user *d = n->user_data;
+	d->trigger = ue->data;
+	switch (ue->type) {
+		case PAUSE_BUFFERING:
+			//Calculate event for highwm
+			d->next_state = N_STALE;
+		case DONE_BUFFERING:
+			d->next_state = N_PLAYING;
+		case DONE_PLAY:
+			//Queue next event
+			d->next_state = N_DONE;
+			break;
+		default:
+			break;
+	}
+}
+
+void client_handle_next_state(struct node *n, struct sim_state *s){
+	struct def_user *d = n->user_data;
+	if (n->state == d->next_state)
+		return;
+	switch(n->state){
+		case N_PLAYING:
+			if (d->next_state == N_STALE)
+				user_highwm_event(d->trigger, s);
+			break;
+		case N_STALE:
+			if (d->next_state == N_PLAYING)
+				user_lowwm_event(d->trigger, s);
+			break;
+		default:
+			assert(false);
+	}
+}
+
+int client_new_connection(id_t rid, size_t start, struct node *server,
+			   struct node *client, struct sim_state *s){
+	struct flow *f = sim_establish_flow(rid, start, server, client, s);
+
+	if (!f)
+		return -1;
+
+	if (f->drng->ranges.next[0] == NULL) {
+		//Add after the last range,
+		//update user events
+		struct skip_list_head *ph = f->drng->ranges.next[0];
+		struct range *prng = skip_list_entry(ph, struct range, ranges);
+		user_lowwm_event(prng->producer, s);
+		user_highwm_event(prng->producer, s);
+	}
+
+	return 0;
+}
+
+int client_recalc_state(struct node *client){
+}

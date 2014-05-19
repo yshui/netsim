@@ -21,12 +21,12 @@ void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 	event_add(e, s);
 }
 
-int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *dst,
+struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *dst,
 		       struct sim_state *s){
 	struct resource *sr = store_get(src->store, rid);
 	if (!sr) {
 		log_err("The resource %d doesn't exist on source node %d\n", rid, src->node_id);
-		return -1;
+		return NULL;
 	}
 	struct resource *dr = store_get(dst->store, rid);
 	if (!dr) {
@@ -37,7 +37,7 @@ int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *ds
 	struct range *rng = range_get(dr, start);
 	if (rng) {
 		log_err("Trying to create a flow to a existing range.\n");
-		return -1;
+		return NULL;
 	}
 
 	struct flow *nf = talloc(1, struct flow);
@@ -58,6 +58,14 @@ int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *ds
 	range_calc_flow_events(nf, s->now);
 	list_add(&nf->consumers, &rng->consumers);
 
+	if (nf->drng->ranges.next[0] == NULL) {
+		//Added after the last range,
+		//update last range's events
+		struct skip_list_head *ph = nf->drng->ranges.prev[0];
+		struct range *prng = skip_list_entry(ph, struct range, ranges);
+		range_calc_and_queue_event(prng->producer, s);
+	}
+
 	id_t rand = random();
 	struct flow *of;
 	do {
@@ -66,7 +74,7 @@ int sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *ds
 	nf->flow_id = rand;
 	HASH_ADD_INT(s->flows, flow_id, nf);
 
-	return 0;
+	return nf;
 }
 
 void sim_register_handler(int type, int priority, event_handler_func f,

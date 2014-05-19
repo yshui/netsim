@@ -95,14 +95,19 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 		struct list_head *h = nrng->consumers.next;
 		list_del(h);
 		list_add(h, &rng->consumers);
+
+		struct flow *f = skip_list_entry(h, struct flow, consumers);
+		f->srng = rng;
 	}
 
 	skip_list_delete(nh);
 	free(nrng);
 
 	struct flow *f;
-	list_for_each_entry(f, &rng->consumers, consumers)
+	list_for_each_entry(f, &rng->consumers, consumers) {
+		range_update(f->drng, s);
 		range_calc_and_queue_event(f, s);
+	}
 
 	range_update(rng->producer->srng, s);
 	range_update(rng->producer->drng, s);
