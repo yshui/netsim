@@ -83,12 +83,14 @@ enum node_state {
 	N_PLAYING,
 	N_DONE,
 	N_IDLE,
+	N_SERVER,
 };
 
 enum ue_type {
 	DONE_PLAY,
 	PAUSE_BUFFERING,
 	DONE_BUFFERING,
+	NEW_CONNECTION,
 };
 
 struct user_event {

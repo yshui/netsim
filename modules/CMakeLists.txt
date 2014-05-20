@@ -13,3 +13,5 @@ new_module("test05")
 
 add_library(tc1 SHARED test_client1.c client_behaviour.c)
 set_target_properties(tc1 PROPERTIES PREFIX "")
+add_library(tc2 SHARED test_client2.c client_behaviour.c)
+set_target_properties(tc2 PROPERTIES PREFIX "")

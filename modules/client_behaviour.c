@@ -109,7 +109,9 @@ void client_start_play(struct node *client, id_t rid, struct sim_state *s){
 	struct range *rng = range_get(r, 0);
 	d->resource = rid;
 	d->buffer_pos = 0;
+	d->last_update = s->now;
 	d->bit_rate = r->bit_rate;
+	d->resource = rid;
 	d->next_state = client->state = client_recalc_state(client);
 
 	if (!rng) {
