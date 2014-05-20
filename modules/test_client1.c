@@ -34,11 +34,10 @@ void test_sc(struct event *e, struct sim_state *s){
 void test_user_event(struct event *e, struct sim_state *s){
 	client_next_state_from_event(e, s);
 	struct user_event *ue = e->data;
-	struct flow *f = ue->data;
-	struct def_user *d = f->dst->user_data;
-	log_info("[%.06lf] Client: %d, %s -> %s\n", s->now, f->dst->node_id,
-		 strstate(f->dst->state), strstate(d->next_state));
-	client_handle_next_state(f->dst, s);
+	struct def_user *d = ue->d;
+	log_info("[%.06lf] Client: %d, %s -> %s\n", s->now, d->n->node_id,
+		 strstate(d->n->state), strstate(d->next_state));
+	client_handle_next_state(d->n, s);
 }
 
 double test_delay(void *a, void *b){
@@ -65,7 +64,7 @@ int tc1_init(struct sim_state *s){
 	s1->maximum_bandwidth[0] = s1->maximum_bandwidth[1] = 100;
 	c1->maximum_bandwidth[0] = c1->maximum_bandwidth[1] = 100;
 
-	r = sim_node_new_resource(s1, 5000000, s);
+	r = sim_node_new_resource(s1, 6000, s);
 	r->bit_rate = 200;
 	d->resource = r->resource_id;
 	d->last_update = 0;

@@ -3,18 +3,19 @@
 #include "event.h"
 #include "record.h"
 #include "connect.h"
+#include "user.h"
 
-void user_lowwm_event(struct flow *f, struct sim_state *s){
-	struct def_user *d = f->dst->user_data;
+void user_lowwm_event(struct range *rng, struct sim_state *s){
+	struct def_user *d = rng->owner->user_data;
 	struct user_event *ue;
 	//Make sure the node state is updated!!
-	assert(f->dst->state == d->next_state);
-	range_update(f->drng, s);
-	if (f->dst->state != N_PLAYING)
+	assert(d->n->state == d->next_state);
+	range_update(rng, s);
+	if (d->n->state != N_PLAYING)
 		return;
 
 	int pos = d->buffer_pos;
-	if (f->drng->start > pos)
+	if (rng->start > pos)
 		//Player hasn't reached this range yet
 		return;
 
@@ -27,22 +28,25 @@ void user_lowwm_event(struct flow *f, struct sim_state *s){
 	//The range->grow should be updated by now, otherwise
 	//you queued the user handler wrong.
 	double br = d->bit_rate;
-	if (f->drng->ranges.next[0] == NULL) {
-		double time2 = (f->drng->total_len-pos)/br;
-		double time3 = (f->drng->total_len-f->drng->start-f->drng->len)/
-				f->bandwidth;
+	if (rng->ranges.next[0] == NULL) {
+		double time2 = (rng->total_len-pos)/br;
+		double time3 = (rng->total_len-rng->start-rng->len)/
+				rng->grow;
+		if (rng->total_len == rng->start+rng->len)
+			time3 = 0;
 		if (time2 > time3) {
 			//When finish downloading before reach end.
 			ue = d->e->data;
 			d->e->time = s->now+time2;
 			ue->type = DONE_PLAY;
-			ue->data = f;
+			ue->d = d;
+			ue->data = NULL;
 			event_add(d->e, s);
 			return;
 		}
 	}
 
-	if (br < f->drng->grow) {
+	if (br < rng->grow) {
 		//No extra events needed.
 		//No done event because there's a next range.
 		return;
@@ -50,35 +54,38 @@ void user_lowwm_event(struct flow *f, struct sim_state *s){
 
 	//Stop playing after hit 10% buffer
 	int limit = d->lowwm;
-	double time = (f->drng->start+f->drng->len-pos-limit)/(br-f->drng->grow);
-	assert(f->drng->start+f->drng->len > pos+limit);
+	double time = (rng->start+rng->len-pos-limit)/(br-rng->grow);
+	assert(rng->start+rng->len > pos+limit);
 
-	if ((f->done && time+s->now > f->done->time) ||
-	    (f->drain && time+s->now > f->drain->time)) {
-		//The range will "done" before we hit low water mark.
-		//The low water mark event will be calculated when
-		//handling next done event. And at that time buf_pos
-		//is definitely still in this range.
+	if (rng->producer) {
+		struct flow *f = rng->producer;
+		if ((f->done && time+s->now > f->done->time) ||
+				(f->drain && time+s->now > f->drain->time)) {
+			//The range will "done" before we hit low water mark.
+			//The low water mark event will be calculated when
+			//handling next done event. And at that time buf_pos
+			//is definitely still in this range.
 
-		//Or
+			//Or
 
-		//The range will hit a speed throttle or eof before low
-		//water mark. The low water mark will be calculated at
-		//that time
-		return;
+			//The range will hit a speed throttle or eof before low
+			//water mark. The low water mark will be calculated at
+			//that time
+			return;
+		}
 	}
 
 	ue = d->e->data;
 	d->e->time = time+s->now;
 	ue->type = PAUSE_BUFFERING;
-	ue->data = f;
+	ue->d = d;
+	ue->data = rng;
 	event_add(d->e, s);
 }
 
-void user_highwm_event(struct flow *f, struct sim_state *s){
-	struct range *rng = f->drng;
+void user_highwm_event(struct range *rng, struct sim_state *s){
 	range_update(rng, s);
-	struct node *n = f->dst;
+	struct node *n = rng->owner;
 	struct def_user *d = n->user_data;
 	struct user_event *ue;
 	//Make sure the node state is updated!!
@@ -99,20 +106,25 @@ void user_highwm_event(struct flow *f, struct sim_state *s){
 	event_remove(d->e);
 
 	int re = rng->start+rng->len-d->buffer_pos;
-	double time = (d->highwm-re)/f->bandwidth;
+	double time = (d->highwm-re)/rng->grow;
 	if (!nh) {
 		//Reaching the eof count as highwm
-		double time2 = (rng->total_len-rng->start-rng->len)/f->bandwidth;
+		double time2 = (rng->total_len-rng->start-rng->len)/rng->grow;
 		if (time2 < time)
 			time = time2;
+		if (time2-time > -eps && time2-time < eps) {
+			//FLOW_DONE overlap with highwm
+		}
 	}
 	time += s->now;
-	if ((!f->done || time < f->done->time) &&
-	    (!f->drain || time < f->drain->time)) {
+	struct flow *f = rng->producer;
+	if (!f || ((!f->done || time < f->done->time) &&
+	    (!f->drain || time < f->drain->time))) {
 		d->e->time = time;
 		ue = d->e->data;
 		ue->type = DONE_BUFFERING;
-		ue->data = f;
+		ue->data = rng;
+		ue->d = d;
 		event_add(d->e, s);
 	}
 }
@@ -121,7 +133,7 @@ void user_recalculate_event2(struct def_user *d, struct sim_state *s){
 	struct node *n = d->n;
 	struct resource *rsrc = store_get(n->store, d->resource);
 	struct range *rng = range_get(rsrc, d->buffer_pos);
-	user_lowwm_event(rng->producer, s);
+	user_lowwm_event(rng, s);
 }
 
 void user_speed_change(struct event *e, struct sim_state *s){
@@ -136,8 +148,8 @@ void user_speed_change(struct event *e, struct sim_state *s){
 	if (se->c->peer[1]->state == N_PLAYING)
 		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 	d->last_update = s->now;
-	user_lowwm_event(se->c->f, s);
-	user_highwm_event(se->c->f, s);
+	user_lowwm_event(se->c->f->drng, s);
+	user_highwm_event(se->c->f->drng, s);
 }
 
 void user_done(struct event *e, struct sim_state *s){
@@ -147,13 +159,13 @@ void user_done(struct event *e, struct sim_state *s){
 	if (f->dst->state == N_PLAYING)
 		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 	d->last_update = s->now;
-	if (rng->start+rng->len == rng->total_len){
+	/*if (rng->start+rng->len == rng->total_len){
 		//Already hit the end of the resource
 		d->next_state = N_DONE;
 		return;
-	}
+	}*/
 	//The drng is merged with next range
-	user_lowwm_event(e->data, s);
-	user_highwm_event(e->data, s);
+	user_lowwm_event(rng, s);
+	user_highwm_event(rng, s);
 }
 

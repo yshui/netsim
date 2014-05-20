@@ -36,6 +36,7 @@ resource_new_range(struct resource *r, size_t start, size_t len){
 
 	rng = range_new(start, len);
 	rng->total_len = r->len;
+	rng->owner = r->owner;
 	skip_list_insert(&r->ranges, &rng->ranges, &rng->start, range_list_cmp);
 	return rng;
 }

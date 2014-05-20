@@ -19,6 +19,7 @@ struct range {
 	struct skip_list_head ranges;
 	struct list_head consumers;
 	struct flow *producer;
+	struct node *owner;
 };
 
 struct resource {
@@ -27,6 +28,7 @@ struct resource {
 	int bit_rate;
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
+	struct node *owner;
 };
 
 struct store {
@@ -91,6 +93,7 @@ enum ue_type {
 
 struct user_event {
 	int type;
+	struct def_user *d;
 	void *data;
 };
 

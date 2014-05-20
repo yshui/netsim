@@ -10,9 +10,15 @@
 
 void client_next_state_from_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
+	if (ue->type == DONE_PLAY) {
+		//The connection might already be closed.
+		struct def_user *d = ue->d;
+		d->next_state = N_DONE;
+		return;
+	}
 	struct flow *f = ue->data;
-	struct node *n = f->dst;
-	struct def_user *d = n->user_data;
+	struct def_user *d = ue->d;
+	struct node *n = d->n;
 	d->trigger = ue->data;
 	switch (ue->type) {
 		case PAUSE_BUFFERING:
@@ -33,7 +39,7 @@ void client_next_state_from_event(struct event *e, struct sim_state *s){
 
 void client_handle_next_state(struct node *n, struct sim_state *s){
 	struct def_user *d = n->user_data;
-	struct flow *f = d->trigger;
+	struct range *rng = d->trigger;
 	if (n->state == d->next_state)
 		return;
 	int o_state = n->state;
@@ -43,11 +49,13 @@ void client_handle_next_state(struct node *n, struct sim_state *s){
 			d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 			d->last_update = s->now;
 			if (d->next_state == N_STALE)
-				user_highwm_event(d->trigger, s);
+				user_highwm_event(rng, s);
 			break;
 		case N_STALE:
+			//Not playing, buffer_pos unchanged
+			d->last_update = s->now;
 			if (d->next_state == N_PLAYING)
-				user_lowwm_event(d->trigger, s);
+				user_lowwm_event(rng, s);
 			break;
 		default:
 			assert(false);
@@ -68,8 +76,8 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	//update previous range's user events
 	struct skip_list_head *ph = f->drng->ranges.prev[0];
 	struct range *prng = skip_list_entry(ph, struct range, ranges);
-	user_lowwm_event(prng->producer, s);
-	user_highwm_event(prng->producer, s);
+	user_lowwm_event(prng, s);
+	user_highwm_event(prng, s);
 
 	return 0;
 }
@@ -109,6 +117,6 @@ void client_start_play(struct node *client, id_t rid, struct sim_state *s){
 		assert(r->ranges.next[0]);
 		rng = skip_list_entry(r->ranges.next[0], struct range, ranges);
 	}
-	user_lowwm_event(rng->producer, s);
-	user_highwm_event(rng->producer, s);
+	user_lowwm_event(rng, s);
+	user_highwm_event(rng, s);
 }
