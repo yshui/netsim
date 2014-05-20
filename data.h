@@ -24,6 +24,7 @@ struct range {
 struct resource {
 	id_t resource_id;
 	size_t len;
+	int bit_rate;
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
 };

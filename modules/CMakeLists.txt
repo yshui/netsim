@@ -10,3 +10,6 @@ new_module("test02")
 new_module("test03")
 new_module("test04")
 new_module("test05")
+
+add_library(tc1 SHARED test_client1.c client_behaviour.c)
+set_target_properties(tc1 PROPERTIES PREFIX "")

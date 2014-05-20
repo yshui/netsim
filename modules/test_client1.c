@@ -36,12 +36,20 @@ void test_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct flow *f = ue->data;
 	struct def_user *d = f->dst->user_data;
-	log_info("Client: %d, %s -> %s\n", f->dst->node_id,
+	log_info("[%.06lf] Client: %d, %s -> %s\n", s->now, f->dst->node_id,
 		 strstate(f->dst->state), strstate(d->next_state));
 	client_handle_next_state(f->dst, s);
 }
 
-int test_client1_init(struct sim_state *s){
+double test_delay(void *a, void *b){
+	return 200;
+}
+
+double test_bandwidth(void *a, void *b){
+	return 100;
+}
+
+int tc1_init(struct sim_state *s){
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 
@@ -58,11 +66,16 @@ int test_client1_init(struct sim_state *s){
 	c1->maximum_bandwidth[0] = c1->maximum_bandwidth[1] = 100;
 
 	r = sim_node_new_resource(s1, 5000000, s);
+	r->bit_rate = 200;
 	d->resource = r->resource_id;
 	d->last_update = 0;
 	d->lowwm = 1000;
 	d->highwm = 2000;
 	d->buffer_pos = 0;
 
-	c1->state = N_STALE;
+	c1->state = N_IDLE;
+
+	client_new_connection(r->resource_id, 0, s1, c1, s);
+	client_start_play(c1, r->resource_id, s);
+	return 0;
 }

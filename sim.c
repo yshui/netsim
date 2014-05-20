@@ -32,6 +32,7 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	if (!dr) {
 		//The resource doesn't exist on the dst yet, create it
 		dr = resource_new(sr->resource_id, sr->len);
+		dr->bit_rate = sr->bit_rate;
 		store_set(dst->store, dr);
 	}
 	struct range *rng = range_get(dr, start);

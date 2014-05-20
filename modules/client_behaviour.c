@@ -18,8 +18,10 @@ void client_next_state_from_event(struct event *e, struct sim_state *s){
 		case PAUSE_BUFFERING:
 			//Calculate event for highwm
 			d->next_state = N_STALE;
+			break;
 		case DONE_BUFFERING:
 			d->next_state = N_PLAYING;
+			break;
 		case DONE_PLAY:
 			//Queue next event
 			d->next_state = N_DONE;
@@ -31,10 +33,15 @@ void client_next_state_from_event(struct event *e, struct sim_state *s){
 
 void client_handle_next_state(struct node *n, struct sim_state *s){
 	struct def_user *d = n->user_data;
+	struct flow *f = d->trigger;
 	if (n->state == d->next_state)
 		return;
-	switch(n->state){
+	int o_state = n->state;
+	n->state = d->next_state;
+	switch(o_state){
 		case N_PLAYING:
+			d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
+			d->last_update = s->now;
 			if (d->next_state == N_STALE)
 				user_highwm_event(d->trigger, s);
 			break;
@@ -54,17 +61,54 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	if (!f)
 		return -1;
 
-	if (f->drng->ranges.next[0] == NULL) {
-		//Add after the last range,
-		//update user events
-		struct skip_list_head *ph = f->drng->ranges.next[0];
-		struct range *prng = skip_list_entry(ph, struct range, ranges);
-		user_lowwm_event(prng->producer, s);
-		user_highwm_event(prng->producer, s);
-	}
+	if (client->state != N_PLAYING && client->state != N_STALE)
+		//state == N_DONE, N_IDLE, N_OFFLINE
+		return 0;
+
+	//update previous range's user events
+	struct skip_list_head *ph = f->drng->ranges.prev[0];
+	struct range *prng = skip_list_entry(ph, struct range, ranges);
+	user_lowwm_event(prng->producer, s);
+	user_highwm_event(prng->producer, s);
 
 	return 0;
 }
 
 int client_recalc_state(struct node *client){
+	struct def_user *d = client->user_data;
+	struct resource *r = store_get(client->store, d->resource);
+	struct range *rng = range_get(r, d->buffer_pos);
+
+	if (!rng)
+		//nothing downloaded
+		return N_STALE;
+
+	if (d->buffer_pos == rng->total_len)
+		return N_DONE;
+
+	if (rng->start+rng->len == rng->total_len)
+		return N_PLAYING;
+
+	if (rng->start+rng->len > d->buffer_pos+d->lowwm)
+		return N_PLAYING;
+
+	return N_STALE;
+}
+
+void client_start_play(struct node *client, id_t rid, struct sim_state *s){
+	struct def_user *d = client->user_data;
+	struct resource *r = store_get(client->store, rid);
+	struct range *rng = range_get(r, 0);
+	d->resource = rid;
+	d->buffer_pos = 0;
+	d->bit_rate = r->bit_rate;
+	d->next_state = client->state = client_recalc_state(client);
+
+	if (!rng) {
+		//Nothing downloaded yet
+		assert(r->ranges.next[0]);
+		rng = skip_list_entry(r->ranges.next[0], struct range, ranges);
+	}
+	user_lowwm_event(rng->producer, s);
+	user_highwm_event(rng->producer, s);
 }
