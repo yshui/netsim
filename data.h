@@ -13,7 +13,8 @@ struct flow;
 typedef unsigned int id_t;
 
 struct range {
-	size_t start, len, total_len; //in Kbits
+	size_t start, total_len; //in Kbits
+	double len, lenc; //lenc is for kaham summation algo
 	double grow; //grow speed, Kbits per second
 	double last_update;
 	struct skip_list_head ranges;
@@ -84,33 +85,6 @@ enum node_state {
 	N_DONE,
 	N_IDLE,
 	N_SERVER,
-};
-
-enum ue_type {
-	DONE_PLAY,
-	PAUSE_BUFFERING,
-	DONE_BUFFERING,
-	NEW_CONNECTION,
-};
-
-struct user_event {
-	int type;
-	struct def_user *d;
-	void *data;
-};
-
-struct def_user {
-	double bit_rate;
-	enum node_state next_state;
-	void *trigger;
-	//low water mark: stop playing
-	//high water mark: start playing
-	int highwm, lowwm;
-	int buffer_pos;
-	int resource;
-	double last_update, last_speed;
-	struct node *n;
-	struct event *e;
 };
 
 struct node {

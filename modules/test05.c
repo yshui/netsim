@@ -8,6 +8,7 @@
 #include "event.h"
 #include "connect.h"
 #include "record.h"
+#include "test_common.h"
 
 static struct node *s1, *s2, *c1, *c2;
 static struct resource *r;
@@ -45,14 +46,6 @@ void test_sc(struct event *e, struct sim_state *s){
 	log_info("[%.06lf] Node %d -> %d dir %d se->speed %lf result speed %lf\n",
 		 s->now, se->c->peer[0]->node_id, se->c->peer[1]->node_id, t,
 		 se->speed, se->c->speed[se->type]);
-}
-
-struct node *test_create_node(struct sim_state *s){
-	struct node *n = sim_create_node(s);
-	struct def_user *d;
-	n->user_data = d = talloc(1, struct def_user);
-	d->n = n;
-	return n;
 }
 
 void test05_init(struct sim_state *s){

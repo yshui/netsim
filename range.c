@@ -82,7 +82,8 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 		return;
 
 	struct range *nrng = skip_list_entry(nh, struct range, ranges);
-	assert(rng->start+rng->len == nrng->start);
+	double xeps = rng->start+rng->len-nrng->start;
+	assert(xeps > -eps && xeps < eps);
 	//Update next range
 
 	rng->len = nrng->start-rng->start+nrng->len;

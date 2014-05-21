@@ -8,6 +8,8 @@
 #include "skiplist.h"
 #include "data.h"
 
+#include <math.h>
+
 static inline void event_remove(struct event *e){
 	if (!e || !e->active)
 		return;
@@ -34,6 +36,14 @@ static inline void event_add(struct event *e, struct sim_state *s){
 		return;
 	if (e->time < s->now) {
 		log_err("Add event back in time\n");
+		abort();
+	}
+	if (isinf(e->time)) {
+		log_err("Add event at inf: %lf\n", e->time);
+	//	abort();
+	}
+	if (isnan(e->time)) {
+		log_err("Add event at nan\n");
 		abort();
 	}
 	log_debug("Event add %d %lf\n", e->type, e->time);

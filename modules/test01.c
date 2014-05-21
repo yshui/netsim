@@ -24,9 +24,9 @@ void test01_init(struct sim_state *s){
 	s->bwcalc = test_bandwidth;
 
 	struct node *server = sim_create_node(s);
-	server->user_data = talloc(1, struct def_user);
+	server->user_data = NULL;
 	struct node *client = sim_create_node(s);
-	client->user_data = talloc(1, struct def_user);
+	client->user_data = NULL;
 
 	sim_register_handler(FLOW_DONE, HNDR_USER, test_user_done, s);
 

@@ -49,6 +49,11 @@ static inline struct range *node_new_range(struct node *n, int resource_id,
 }
 
 static inline void range_update(struct range *r, struct sim_state *s){
-	r->len += r->grow*(s->now-r->last_update)+eps;
+	//Kaham summation algo
+	double delta = r->grow*(s->now-r->last_update), t;
+	delta = delta - r->lenc;
+	t = delta+r->len;
+	r->lenc = (t-r->len)-delta;
+	r->len = t;
 	r->last_update = s->now;
 }
