@@ -1,3 +1,5 @@
+#define LOG_DOMAIN "client_behaviour"
+
 #include "sim.h"
 #include "connect.h"
 #include "store.h"

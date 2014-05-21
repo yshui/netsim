@@ -24,11 +24,11 @@ struct node *test_create_node(struct sim_state *s){
 }
 
 void test_user_done(struct event *e, struct sim_state *s){
-	user_done(e, s);
+	client_done(e, s);
 }
 
 void test_sc(struct event *e, struct sim_state *s){
-	user_speed_change(e, s);
+	client_speed_change(e, s);
 }
 
 void test_user_event(struct event *e, struct sim_state *s){
