@@ -17,14 +17,15 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src,
 void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 		     struct sim_state *s);
 struct resource *
-sim_node_new_resource(struct node *n, size_t len, struct sim_state *s);
+sim_node_new_resource(struct node *n, size_t len);
+struct resource *sim_node_add_resource(struct node *n, struct resource *r);
 
 static inline
 void print_range(struct resource *r){
 	struct skip_list_head *h = r->ranges.next[0];
 	while(h){
 		struct range *rng = skip_list_entry(h, struct range, ranges);
-		log_info("Range [%zu, %zu)\n", rng->start, rng->start+rng->len);
+		log_info("Range [%zu, %lf)\n", rng->start, rng->start+rng->len);
 		h = h->next[0];
 	}
 }

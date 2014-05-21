@@ -7,7 +7,7 @@
 #include "user.h"
 #include "skiplist.h"
 #include "record.h"
-#include "client_behaviour.h"
+#include "p2p_common.h"
 
 #include "common.h"
 
@@ -285,5 +285,7 @@ void client_done(struct event *e, struct sim_state *s){
 	//The drng is merged with next range
 	client_lowwm_event(rng, s);
 	client_highwm_event(rng, s);
-}
 
+	//Add resource to holders
+	resource_add_provider(f->resource_id, f->dst, s);
+}

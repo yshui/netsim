@@ -110,7 +110,7 @@ struct node *sim_create_node(struct sim_state *s){
 
 //Create a new resource on a node, this node will immediately have a whole
 //copy of the resource
-struct resource *sim_node_new_resource(struct node *n, size_t len, struct sim_state *s){
+struct resource *sim_node_new_resource(struct node *n, size_t len){
 	if (!n->store)
 		n->store = store_new();
 	struct resource *r = resource_new(random(), len);
@@ -121,4 +121,18 @@ struct resource *sim_node_new_resource(struct node *n, size_t len, struct sim_st
 
 	resource_new_range(r, 0, len);
 	return r;
+}
+struct resource *sim_node_add_resource(struct node *n, struct resource *r){
+	if (!n->store)
+		n->store = store_new();
+	struct resource *nr = store_get(n->store, r->resource_id);
+	if (nr)
+		return NULL;
+	nr = resource_new(r->resource_id, r->len);
+	nr->bit_rate = r->bit_rate;
+	nr->owner = n;
+
+	store_set(n->store, nr);
+	resource_new_range(nr, 0, nr->len);
+	return nr;
 }

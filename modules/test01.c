@@ -33,7 +33,7 @@ void test01_init(struct sim_state *s){
 	server->maximum_bandwidth[0] = server->maximum_bandwidth[1] = 5000;
 	client->maximum_bandwidth[0] = client->maximum_bandwidth[1] = 1000;
 
-	struct resource *r = sim_node_new_resource(server, 5000000, s);
+	struct resource *r = sim_node_new_resource(server, 5000000);
 
 	sim_establish_flow(r->resource_id, 0, server, client, s);
 

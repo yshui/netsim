@@ -175,6 +175,7 @@ struct sim_state {
 	//User provided functions:
 	double (*bwcalc)(void *src, void *dst);
 	double (*dlycalc)(void *src, void *dst);
+	void *user_data;
 };
 
 

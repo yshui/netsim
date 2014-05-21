@@ -69,7 +69,7 @@ int tc2_init(struct sim_state *s){
 	c1->maximum_bandwidth[0] = c1->maximum_bandwidth[1] = 100;
 	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 100;
 
-	r = sim_node_new_resource(s1, 6000, s);
+	r = sim_node_new_resource(s1, 6000);
 	r->bit_rate = 200;
 	struct def_user *d = c1->user_data;
 	d->lowwm = 1000;

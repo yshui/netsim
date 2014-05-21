@@ -66,7 +66,7 @@ void test04_init(struct sim_state *s){
 	c1->maximum_bandwidth[0] = c1->maximum_bandwidth[1] = 1000;
 	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 1000;
 
-	r = sim_node_new_resource(s1, 5000000, s);
+	r = sim_node_new_resource(s1, 5000000);
 
 	sim_establish_flow(r->resource_id, 0, s1, s2, s);
 }
