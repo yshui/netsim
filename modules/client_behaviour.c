@@ -1,7 +1,7 @@
 #define LOG_DOMAIN "client_behaviour"
 
 #include "sim.h"
-#include "connect.h"
+#include "flow.h"
 #include "store.h"
 #include "range.h"
 #include "user.h"
@@ -40,7 +40,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 	if (rng->ranges.next[0] == NULL) {
 		double time2 = (rng->total_len-pos)/br;
 		double time3 = (rng->total_len-rng->start-rng->len)/
-				rng->grow;
+				rng->producer->speed[1];
 		if (fequ(rng->total_len, rng->start+rng->len))
 			time3 = 0;
 		if (time2 > time3) {
@@ -55,7 +55,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 		}
 	}
 
-	if (br < rng->grow) {
+	if (br < rng->producer->speed[1]) {
 		//No extra events needed.
 		//No done event because there's a next range.
 		return;
@@ -63,7 +63,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 
 	//Stop playing after hit lowwm
 	int limit = d->lowwm;
-	double time = (rng->start+rng->len-pos-limit)/(br-rng->grow);
+	double time = (rng->start+rng->len-pos-limit)/(br-rng->producer->speed[1]);
 	assert(rng->start+rng->len > pos+limit);
 
 	if (rng->producer) {
@@ -115,12 +115,12 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 	event_remove(d->e);
 
 	int re = rng->start+rng->len-d->buffer_pos;
-	double time = (d->highwm-re)/rng->grow;
+	double time = (d->highwm-re)/rng->producer->speed[1];
 	if (re >= d->highwm)
 		time = 0;
 	if (!nh) {
 		//Reaching the eof count as highwm
-		double time2 = (rng->total_len-rng->start-rng->len)/rng->grow;
+		double time2 = (rng->total_len-rng->start-rng->len)/rng->producer->speed[1];
 		if (fequ(rng->total_len, rng->start+rng->len))
 			time2 = 0;
 		if (time2 < time)
@@ -265,21 +265,21 @@ void client_speed_change(struct event *e, struct sim_state *s){
 	if (se->type != P_RCV)
 		//receive speed not changed
 		return;
-	struct def_user *d = se->c->peer[1]->user_data;
+	struct def_user *d = se->f->peer[1]->user_data;
 
 	//update buffer_pos
-	if (se->c->peer[1]->state == N_PLAYING)
+	if (se->f->peer[1]->state == N_PLAYING)
 		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 	d->last_update = s->now;
-	client_lowwm_event(se->c->f->drng, s);
-	client_highwm_event(se->c->f->drng, s);
+	client_lowwm_event(se->f->drng, s);
+	client_highwm_event(se->f->drng, s);
 }
 
 void client_done(struct event *e, struct sim_state *s){
 	struct flow *f = e->data;
 	struct range *rng = f->drng;
-	struct def_user *d = f->dst->user_data;
-	if (f->dst->state == N_PLAYING)
+	struct def_user *d = f->peer[1]->user_data;
+	if (f->peer[1]->state == N_PLAYING)
 		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 	d->last_update = s->now;
 	/*if (rng->start+rng->len == rng->total_len){

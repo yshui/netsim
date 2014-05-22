@@ -12,7 +12,6 @@
 #include "event.h"
 #include "list.h"
 #include "sim.h"
-#include "connect.h"
 #include "flow.h"
 
 int global_log_level = LOG_INFO;

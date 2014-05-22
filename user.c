@@ -2,7 +2,6 @@
 #include "range.h"
 #include "event.h"
 #include "record.h"
-#include "connect.h"
 #include "user.h"
 
 void user_speed_change(struct event *e, struct sim_state *s){

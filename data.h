@@ -15,7 +15,7 @@ typedef unsigned int id_t;
 struct range {
 	size_t start, total_len; //in Kbits
 	double len, lenc; //lenc is for kaham summation algo
-	double grow; //grow speed, Kbits per second
+	//grow is deleted, use producer->speed[1]
 	double last_update;
 	struct skip_list_head ranges;
 	struct list_head consumers;
@@ -39,8 +39,8 @@ struct store {
 
 enum peer_type {P_SND = 0, P_RCV};
 
-struct connection {
-	id_t conn_id;
+struct flow {
+	id_t flow_id, resource_id;
 	UT_hash_handle hh;
 	double bwupbound;
 	double speed[2];
@@ -76,6 +76,14 @@ struct connection {
 	struct flow *f; //Might be null
 	struct list_head conns[2];
 	struct list_head spd_evs;
+	//This is a directional flow
+	int start;
+	double begin_time;
+	//Done event is when the flow has filled the target range
+	//Drain event is when the flow has drained the source range
+	struct event *done, *drain;
+	struct range *drng, *srng;
+	struct list_head consumers;
 };
 
 enum node_state {
@@ -98,23 +106,6 @@ struct node {
 	id_t node_id;
 	UT_hash_handle hh;
 	enum node_state state;
-};
-
-struct flow {
-	//This is a directional flow
-	struct node *src, *dst;
-	double bandwidth;
-	int resource_id;
-	int start;
-	double begin_time;
-	id_t flow_id;
-	UT_hash_handle hh;
-	//Done event is when the flow has filled the target range
-	//Drain event is when the flow has drained the source range
-	struct event *done, *drain;
-	struct range *drng, *srng;
-	struct connection *c;
-	struct list_head consumers;
 };
 
 enum event_type {
@@ -166,7 +157,6 @@ struct sim_state {
 	//Hashes:
 	struct node *nodes;
 	struct flow *flows;
-	struct connection *conns;
 
 	//Record:
 	void *record_tail, *record_head;

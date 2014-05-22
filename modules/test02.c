@@ -6,7 +6,7 @@
 #include "store.h"
 #include "user.h"
 #include "event.h"
-#include "connect.h"
+#include "flow.h"
 #include "test_common.h"
 
 static struct node *server, *client, *client2;
@@ -23,7 +23,7 @@ double test_bandwidth(void *a, void *b){
 void test_user_done(struct event *e, struct sim_state *s){
 	user_done(e, s);
 	struct flow *f = e->data;
-	log_info("Download done at %lfs, node %d \n", s->now, f->dst->node_id);
+	log_info("Download done at %lfs, node %d \n", s->now, f->peer[1]->node_id);
 }
 
 void test_user_event(struct event *e, struct sim_state *s){
@@ -32,7 +32,7 @@ void test_user_event(struct event *e, struct sim_state *s){
 
 void test_sc(struct event *e, struct sim_state *s){
 	struct spd_event *se = e->data;
-	log_info("Node %d dir %d speed %lf\n", se->c->peer[se->type]->node_id, se->type, se->speed);
+	log_info("Node %d dir %d speed %lf\n", se->f->peer[se->type]->node_id, se->type, se->speed);
 }
 
 void test02_init(struct sim_state *s){

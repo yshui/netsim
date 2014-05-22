@@ -15,24 +15,25 @@
 //the connection, we throttle the send speed).
 void range_calc_flow_events(struct flow *f, double now){
 	f->drain = f->done = NULL;
-	if (f->bandwidth < eps)
+	if (f->speed[1] < eps)
 		return;
 	struct range *srng = f->srng;
 	struct range *drng = f->drng;
 	assert(srng->last_update == drng->last_update);
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
+	double sgrow = srng->producer->speed[1];
+	double fbw = f->speed[1];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
-	double drain_time = (srng->len-drng_start+1)/
-			    (double)(srng->grow-f->bandwidth);
+	double drain_time = (srng->len-drng_start+1)/(sgrow-fbw);
 
 	if (!srng->producer)
 		//Don't have a producer, generate a DRAIN event
-		f->drain = event_new(now+(srng->len-drng_start)/f->bandwidth,
+		f->drain = event_new(now+(srng->len-drng_start)/fbw,
 				     FLOW_DRAIN, f);
 	else if (drain_time < srng->producer->done->time &&
-		 srng->grow < f->bandwidth+eps)
+		 sgrow < fbw+eps)
 		//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
 		f->drain = event_new(now+drain_time, FLOW_SPEED_THROTTLE, f);
 
@@ -43,7 +44,7 @@ void range_calc_flow_events(struct flow *f, double now){
 		npos = nrng->start;
 	}else
 		npos = drng->total_len;
-	double done_time = (npos-drng->start-drng->len)/(double)f->bandwidth;
+	double done_time = (npos-drng->start-drng->len)/(double)fbw;
 	//Less or equal to here, we always handle done event first. Since when
 	//its done, we don't need to deal with drain or throttle.
 	if (done_time < f->drain->time+eps) {
@@ -62,6 +63,8 @@ void range_calc_and_queue_event(struct flow *f, struct sim_state *s){
 	event_remove(f->drain);
 	event_free(f->done);
 	event_free(f->drain);
+	range_update(f->srng, s);
+	range_update(f->drng, s);
 	range_calc_flow_events(f, s->now);
 	event_add(f->done, s);
 	event_add(f->drain, s);
@@ -80,7 +83,6 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	//Update next range
 
 	rng->len = nrng->start-rng->start+nrng->len;
-	rng->grow = nrng->grow;
 
 	rng->producer = nrng->producer;
 	rng->producer->drng = rng;

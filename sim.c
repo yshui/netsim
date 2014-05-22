@@ -4,7 +4,7 @@
 #include "data.h"
 #include "event.h"
 #include "sim.h"
-#include "connect.h"
+#include "flow.h"
 #include "range.h"
 
 const double eps = 1e-6;
@@ -42,28 +42,22 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 		return NULL;
 	}
 
-	struct flow *nf = talloc(1, struct flow);
 	rng = range_get(sr, start);
-	struct connection *c = connection_create(src, dst, s);
+	struct flow *nf = flow_create(src, dst, s);
 
 	nf->begin_time = s->now;
 	nf->start = start;
-	nf->src = src;
-	nf->dst = dst;
 	nf->drng = node_new_range(dst, rid, start, 0);
 	nf->drng->producer = nf;
 	nf->srng = rng;
 	nf->resource_id = rid;
-	nf->bandwidth = 0;
-	nf->c = c;
-	c->f = nf;
 	range_calc_flow_events(nf, s->now);
 	list_add(&nf->consumers, &rng->consumers);
 
-	if (nf->drng->ranges.next[0] == NULL) {
-		//Added after the last range,
-		//update last range's events
-		struct skip_list_head *ph = nf->drng->ranges.prev[0];
+	//update prev range's events
+	struct skip_list_head *ph = nf->drng->ranges.prev[0];
+	if (ph != &dr->ranges) {
+		//Not the first range
 		struct range *prng = skip_list_entry(ph, struct range, ranges);
 		range_calc_and_queue_event(prng->producer, s);
 	}
