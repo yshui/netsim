@@ -1,6 +1,6 @@
 include_directories("../")
 macro(new_module n)
-	add_library(${n} SHARED "${n}.c")
+	add_library(${n} MODULE "${n}.c")
 	set_target_properties(${n} PROPERTIES PREFIX "")
 endmacro()
 
@@ -11,7 +11,12 @@ new_module("test03")
 new_module("test04")
 new_module("test05")
 
-add_library(tc1 SHARED test_client1.c client_behaviour.c)
+add_library(p2p STATIC client_behaviour.c resource.c)
+set_target_properties(p2p PROPERTIES POSITION_INDEPENDENT_CODE true)
+
+add_library(tc1 SHARED test_client1.c)
+target_link_libraries(tc1 p2p)
 set_target_properties(tc1 PROPERTIES PREFIX "")
-add_library(tc2 SHARED test_client2.c client_behaviour.c)
+add_library(tc2 SHARED test_client2.c)
+target_link_libraries(tc2 p2p)
 set_target_properties(tc2 PROPERTIES PREFIX "")

@@ -37,3 +37,7 @@ static inline int resource_model_cmp(struct skip_list_head *h, void *key){
 		return 1;
 	return 0;
 }
+
+void resource_add_provider(id_t rid, struct node *n, struct sim_state *s);
+id_t new_resource(struct resource_model *r, struct sim_state *s);
+void next_resource_event(struct sim_state *s);

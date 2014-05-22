@@ -1,4 +1,5 @@
 #include "client_behaviour.h"
+#include "p2p_common.h"
 
 #define LOG_DOMAIN "testc"
 
@@ -54,10 +55,12 @@ double test_bandwidth(void *a, void *b){
 }
 
 int tc2_init(struct sim_state *s){
+	init_sim(s, 10);
+	struct def_sim *ds = s->user_data;
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 
-	s1 = test_create_node(s);
+	s1 = p2p_new_server(s);
 	c1 = test_create_node(s);
 	c2 = test_create_node(s);
 
@@ -69,8 +72,15 @@ int tc2_init(struct sim_state *s){
 	c1->maximum_bandwidth[0] = c1->maximum_bandwidth[1] = 100;
 	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 100;
 
-	r = sim_node_new_resource(s1, 6000);
-	r->bit_rate = 200;
+	struct resource_model *rm = talloc(1, struct resource_model);
+	rm->lvar = 10;
+	rm->lm = 1500;
+	rm->brvar = 10;
+	rm->brm = 2600;
+	rm->prob = 1;
+	skip_list_insert(&ds->rms, &rm->models, &rm->prob, resource_model_cmp);
+
+	id_t rid = new_resource(rm, s);
 	struct def_user *d = c1->user_data;
 	d->lowwm = 1000;
 	d->highwm = 2000;

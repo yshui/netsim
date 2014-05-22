@@ -1,16 +1,15 @@
 #include "resource.h"
-#include "skiplist.h"
+#include "list.h"
 #include "gaussian.h"
 #include "p2p_common.h"
 #include "event.h"
 
 #include <stdlib.h>
 
-extern struct skip_list_head rm;
-
 void next_resource_event(struct sim_state *s){
+	struct def_sim *ds = s->user_data;
 	double r1 = random()/((double)RAND_MAX);
-	struct skip_list_head *h = skip_list_find(&rm, &r1, resource_model_cmp);
+	struct skip_list_head *h = skip_list_find(&ds->rms, &r1, resource_model_cmp);
 	struct resource_model *r = skip_list_entry(h, struct resource_model, models);
 	double time = gaussian_noise(r->tvar, r->tm);
 	struct user_event *ue = talloc(1, struct user_event);
@@ -20,10 +19,9 @@ void next_resource_event(struct sim_state *s){
 	event_add(e, s);
 }
 
-void new_resource(struct event *e, struct sim_state *s){
-	struct user_event *ue = e->data;
-	struct resource_model *r = ue->data;
+id_t new_resource(struct resource_model *r, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
+
 	double rlen = gaussian_noise(r->lvar, r->lm);
 	double rbr = gaussian_noise(r->brvar, r->brm);
 	struct resource_entry *re = talloc(1, struct resource_entry);
@@ -33,7 +31,9 @@ void new_resource(struct event *e, struct sim_state *s){
 		HASH_FIND_INT(ds->rsrcs, &re->resource_id, nre);
 	}while(nre);
 	HASH_ADD_INT(ds->rsrcs, resource_id, re);
-	struct resource *nr = resource_new(re->resource_id, rlen);
+	//rlen is the length in seconds
+	//the size is length*bit_rate
+	struct resource *nr = resource_new(re->resource_id, rlen*rbr);
 	nr->bit_rate = rbr;
 
 	struct server *svr;
@@ -41,20 +41,45 @@ void new_resource(struct event *e, struct sim_state *s){
 		sim_node_add_resource(svr->n, nr);
 
 	//Add to the head of probs
-	list_add(&ds->rsrc_probs, &re->probs);
-	//Remove the oldest resource
+	if (ds->nrsrc == ds->max_rsrc) {
+		//Number exceeded, remove the lowest ranked rsrc
+		struct list_head *h = ds->rsrc_probs.prev;
+		struct resource_entry *re = list_entry(h, struct resource_entry, probs);
+		HASH_DEL(ds->rsrcs, re);
+		list_del(h);
+	}else
+		ds->nrsrc++;
+	int new_rank = random()%ds->nrsrc;
+	struct list_head *h = &ds->rsrc_probs;
+	while(new_rank--)
+		h = h->next;
+	list_add(&re->probs, h);
 
 	int rank;
 	struct resource_entry *tre;
-	list_for_each_entry(tre, &ds->rsrc_probs, probs)
-		tre->prob = 000000; //XXX
+	double C = 0;
+	for (rank = 1; rank <= ds->nrsrc; rank++)
+		C += 1/((double)rank);
+
+	C = 1/C;
+	rank = 1;
+	list_for_each_entry(tre, &ds->rsrc_probs, probs) {
+		tre->prob = C/((double)rank); //zipf distribution
+		rank++;
+	}
+
+	id_t ret = nr->resource_id;
 	free(nr);
+	return ret;
 }
 
-void resource_add_provider(int resource_id, struct node *n, struct sim_state *s){
+void resource_add_provider(id_t rid, struct node *n, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
+	if (!ds)
+		return;
+
 	struct resource_entry *re = NULL;
-	HASH_FIND_INT(ds->rsrcs, &resource_id, re);
+	HASH_FIND_INT(ds->rsrcs, &rid, re);
 	if (!re)
 		return;
 
@@ -71,6 +96,9 @@ void resource_add_provider(int resource_id, struct node *n, struct sim_state *s)
 
 void resource_del_provider(int resource_id, int node_id, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
+	if (!ds)
+		return;
+
 	struct resource_entry *re = NULL;
 	HASH_FIND_INT(ds->rsrcs, &resource_id, re);
 	if (!re)

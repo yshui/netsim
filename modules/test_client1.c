@@ -1,3 +1,4 @@
+#include "p2p_common.h"
 #include "client_behaviour.h"
 
 #define LOG_DOMAIN "testc"
@@ -9,6 +10,7 @@
 
 static struct node *s1, *s2, *c1, *c2;
 static struct resource *r;
+struct resource_model rm;
 
 struct user_def{
 	struct def_user d;
