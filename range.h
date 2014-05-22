@@ -4,7 +4,6 @@
 #include "store.h"
 #include "event.h"
 
-struct range *range_get(struct resource *rsrc, int start);
 void range_calc_flow_events(struct flow *f, double now);
 void range_merge_with_next(struct range *rng, struct sim_state *s);
 void range_calc_and_queue_event(struct flow *f, struct sim_state *s);
@@ -20,6 +19,19 @@ static inline int range_list_cmp(struct skip_list_head *a, void *_key){
 			return -1;
 	} else
 		return 1;
+}
+
+static inline struct range *
+range_get(struct resource *rsrc, int start){
+	struct skip_list_head *s = &rsrc->ranges, *r;
+	struct range *rng;
+	r = skip_list_find(s, &start, range_list_cmp);
+	rng = skip_list_entry(r, struct range, ranges);
+	if (!r)
+		return NULL;
+	if (rng->start > start)
+		return NULL;
+	return rng;
 }
 
 static inline void range_update_consumer_events(struct range *rng, struct sim_state *s){

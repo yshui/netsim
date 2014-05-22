@@ -7,12 +7,6 @@
 #include "event.h"
 #include "range.h"
 
-struct range *range_get(struct resource *rsrc, int start){
-	struct skip_list_head *s = &rsrc->ranges, *r;
-	r = skip_list_find(s, &start, range_list_cmp);
-	return r ? skip_list_entry(r, struct range, ranges) : NULL;
-}
-
 //Calculate flow events. The flow structure must be fully populated.
 //Done event is when the drng reaches next range's beginning.
 //Drain event is when the end of srng is RECEIVED, so the delay should be

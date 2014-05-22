@@ -112,3 +112,16 @@ void resource_del_provider(int resource_id, int node_id, struct sim_state *s){
 	HASH_DEL(re->holders, p);
 	free(p);
 }
+
+id_t resource_picker(struct sim_state *s){
+	double rand = random()/((double)RAND_MAX);
+	struct resource_entry *re;
+	struct def_sim *ds = s->user_data;
+	list_for_each_entry(re, &ds->rsrc_probs, probs){
+		if (rand < re->prob)
+			break;
+		rand -= re->prob;
+	}
+	return re->resource_id;
+}
+

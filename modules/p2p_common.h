@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "sim.h"
 #include "common.h"
+#include "client_behaviour.h"
 
 struct def_user {
 	double bit_rate;
@@ -16,6 +17,7 @@ struct def_user {
 	struct node *n;
 	struct event *e;
 	struct resource_provider *p;
+	int time_zone;
 };
 
 struct server {
@@ -47,6 +49,7 @@ struct def_sim {
 	struct resource_entry *rsrcs;
 	//resource number limit
 	int max_rsrc, nrsrc;
+	int start_hour;//Start hour in UTC+0
 };
 
 static inline struct node *
@@ -77,4 +80,12 @@ init_sim(struct sim_state *s, int max){
 	skip_list_init_head(&ds->rms);
 	ds->max_rsrc = max;
 	s->user_data = ds;
+}
+
+static inline double
+get_break_by_hour(int hour){
+	if (hour > 12 && hour < 20)
+		return 1200;
+	else
+		return 3600;
 }

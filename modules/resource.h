@@ -21,7 +21,7 @@ struct resource_provider {
 };
 
 struct resource_entry {
-	int resource_id;
+	id_t resource_id;
 	double prob;
 	struct list_head probs;
 	struct resource_provider *holders;

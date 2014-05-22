@@ -6,6 +6,7 @@
 #include "range.h"
 #include "user.h"
 #include "skiplist.h"
+#include "list.h"
 #include "record.h"
 #include "p2p_common.h"
 
@@ -60,7 +61,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 		return;
 	}
 
-	//Stop playing after hit 10% buffer
+	//Stop playing after hit lowwm
 	int limit = d->lowwm;
 	double time = (rng->start+rng->len-pos-limit)/(br-rng->grow);
 	assert(rng->start+rng->len > pos+limit);
@@ -115,6 +116,8 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 
 	int re = rng->start+rng->len-d->buffer_pos;
 	double time = (d->highwm-re)/rng->grow;
+	if (re >= d->highwm)
+		time = 0;
 	if (!nh) {
 		//Reaching the eof count as highwm
 		double time2 = (rng->total_len-rng->start-rng->len)/rng->grow;
@@ -209,6 +212,8 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	client_lowwm_event(prng, s);
 	client_highwm_event(prng, s);
 
+	//Add resource to holders
+	resource_add_provider(f->resource_id, client, s);
 	return 0;
 }
 
@@ -286,6 +291,37 @@ void client_done(struct event *e, struct sim_state *s){
 	client_lowwm_event(rng, s);
 	client_highwm_event(rng, s);
 
-	//Add resource to holders
-	resource_add_provider(f->resource_id, f->dst, s);
+}
+
+void client_next_event(struct node *n, struct sim_state *s){
+	struct def_sim *ds = s->user_data;
+	struct def_user *d = n->user_data;
+	int elapsed = s->now/60.0/60.0;
+	int nowh = (ds->start_hour+elapsed+d->time_zone)%24;
+	double time = get_break_by_hour(nowh);
+	struct user_event *ue = talloc(1, struct user_event);
+	ue->type = NEW_CONNECTION;
+	ue->data = n;
+	struct event *e = event_new(s->now+time, USER, ue);
+	event_add(e, s);
+}
+
+bool is_server_usable(struct node *n, id_t rid, size_t start){
+	struct resource *r = store_get(n->store, rid);
+	if (!r)
+		return false;
+	struct range *rng = range_get(r, start);
+	if (!rng)
+		return false;
+	return true;
+}
+
+void server_picker1(id_t rid, size_t start, struct sim_state *s){
+	//Only choose the servers
+	struct def_sim *ds = s->user_data;
+	struct server *ss;
+	list_for_each_entry(ss, &ds->servers, servers){
+		if (is_server_usable(ss->n, rid, start))
+			break;
+	}
 }
