@@ -64,6 +64,11 @@ static inline void range_update(struct range *r, struct sim_state *s){
 	//Kaham summation algo
 	if (s->now == r->last_update)
 		return;
+	if (r->producer == NULL) {
+		//This range won't change
+		r->last_update = s->now;
+		return;
+	}
 	assert(s->now > r->last_update);
 	double delta = r->producer->speed[1]*(s->now-r->last_update), t;
 	delta = delta - r->lenc;

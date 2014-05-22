@@ -37,10 +37,10 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 	//The range->grow should be updated by now, otherwise
 	//you queued the user handler wrong.
 	double br = d->bit_rate;
+	double sgrow = rng->producer ? rng->producer->speed[1] : 0;
 	if (rng->ranges.next[0] == NULL) {
 		double time2 = (rng->total_len-pos)/br;
-		double time3 = (rng->total_len-rng->start-rng->len)/
-				rng->producer->speed[1];
+		double time3 = (rng->total_len-rng->start-rng->len)/sgrow;
 		if (fequ(rng->total_len, rng->start+rng->len))
 			time3 = 0;
 		if (time2 > time3) {
@@ -55,7 +55,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 		}
 	}
 
-	if (br < rng->producer->speed[1]) {
+	if (br < sgrow) {
 		//No extra events needed.
 		//No done event because there's a next range.
 		return;
@@ -63,7 +63,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 
 	//Stop playing after hit lowwm
 	int limit = d->lowwm;
-	double time = (rng->start+rng->len-pos-limit)/(br-rng->producer->speed[1]);
+	double time = (rng->start+rng->len-pos-limit)/(br-sgrow);
 	assert(rng->start+rng->len > pos+limit);
 
 	if (rng->producer) {
@@ -115,12 +115,13 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 	event_remove(d->e);
 
 	int re = rng->start+rng->len-d->buffer_pos;
-	double time = (d->highwm-re)/rng->producer->speed[1];
+	double sgrow = rng->producer ? rng->producer->speed[1] : 0;
+	double time = (d->highwm-re)/sgrow;
 	if (re >= d->highwm)
 		time = 0;
 	if (!nh) {
 		//Reaching the eof count as highwm
-		double time2 = (rng->total_len-rng->start-rng->len)/rng->producer->speed[1];
+		double time2 = (rng->total_len-rng->start-rng->len)/sgrow;
 		if (fequ(rng->total_len, rng->start+rng->len))
 			time2 = 0;
 		if (time2 < time)

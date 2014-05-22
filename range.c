@@ -22,7 +22,7 @@ void range_calc_flow_events(struct flow *f, double now){
 	assert(srng->last_update == drng->last_update);
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
-	double sgrow = srng->producer->speed[1];
+	double sgrow = srng->producer ? srng->producer->speed[1] : 0;
 	double fbw = f->speed[1];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
@@ -105,8 +105,10 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 		range_calc_and_queue_event(f, s);
 	}
 
-	range_update(rng->producer->srng, s);
-	range_update(rng->producer->drng, s);
-	range_calc_and_queue_event(rng->producer, s);
+	if (rng->producer) {
+		range_update(rng->producer->srng, s);
+		range_update(rng->producer->drng, s);
+		range_calc_and_queue_event(rng->producer, s);
+	}
 }
 

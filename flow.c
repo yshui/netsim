@@ -350,6 +350,8 @@ void flow_throttle_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
 	f->drain = NULL;
 	range_update(f->drng, s);
+	//If f->srng->producer == NULL, this should be a FLOW_DONE event
+	assert(f->srng->producer);
 	double delta = f->srng->producer->speed[1]-f->speed[0];
 	assert(delta < 0);
 	bwspread(f, delta, 0, P_SND, s);
