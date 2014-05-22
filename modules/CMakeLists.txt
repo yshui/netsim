@@ -11,8 +11,9 @@ new_module("test03")
 new_module("test04")
 new_module("test05")
 
-add_library(p2p STATIC client_behaviour.c resource.c)
+add_library(p2p STATIC client_behaviour.c resource.c gaussian.c)
 set_target_properties(p2p PROPERTIES POSITION_INDEPENDENT_CODE true)
+target_link_libraries(p2p m)
 
 add_library(tc1 SHARED test_client1.c)
 target_link_libraries(tc1 p2p)

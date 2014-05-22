@@ -15,4 +15,6 @@
 
 #define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type))
 
+#define fequ(a, b) ((a)-(b)>-eps && (a)-(b)<eps)
+
 extern const double eps;

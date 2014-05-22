@@ -38,10 +38,6 @@ static inline void event_add(struct event *e, struct sim_state *s){
 		log_err("Add event back in time\n");
 		abort();
 	}
-	if (isinf(e->time)) {
-		log_err("Add event at inf: %lf\n", e->time);
-	//	abort();
-	}
 	if (isnan(e->time)) {
 		log_err("Add event at nan\n");
 		abort();

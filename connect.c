@@ -89,8 +89,8 @@ double bwspread(struct connection *c, double amount, int dir,
 	/* Special Cases */
 	if (total < max+eps) {
 		if (!close || total+c->bwupbound < max+eps) {
-			log_info("total(%lf) < max(%lf), bwspread stop\n",
-				 close ? total : total+c->bwupbound, max);
+			log_info("total(%lf) <= max(%lf), bwspread stop\n",
+				 !close ? total : total+c->bwupbound, max);
 			//The total bwupbound is & was lesser than the peer's
 			//maximum bandwidth, every connection is at its upbound,
 			//and not limited by their share, so there's no need to
@@ -98,7 +98,7 @@ double bwspread(struct connection *c, double amount, int dir,
 			c->peer[dir]->bandwidth_usage[dir] += amount;
 			return amount;
 		}
-		log_info("total(%lf) < max(%lf), but closing, and total+"
+		log_info("total(%lf) <= max(%lf), but closing, and total+"
 			 "bwupbound(%lf) > max, bwspread continue\n", total,
 			 max, total+c->bwupbound);
 	}

@@ -14,7 +14,7 @@ double gaussian_noise(double variance, double mean) {
 
 	if (has_spare) {
 		has_spare = false;
-		return sqrt(variance*rand1)*sin(rand2);
+		return sqrt(variance*rand1)*sin(rand2)+mean;
 	}
 
 	has_spare = true;
@@ -25,5 +25,5 @@ double gaussian_noise(double variance, double mean) {
 	rand1 = -2*log(rand1);
 	rand2 = (random()/((double)RAND_MAX))*TWO_PI;
 
-	return sqrt(variance*rand1)*cos(rand2);
+	return sqrt(variance*rand1)*cos(rand2)+mean;
 }

@@ -40,7 +40,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 		double time2 = (rng->total_len-pos)/br;
 		double time3 = (rng->total_len-rng->start-rng->len)/
 				rng->grow;
-		if (rng->total_len == rng->start+rng->len)
+		if (fequ(rng->total_len, rng->start+rng->len))
 			time3 = 0;
 		if (time2 > time3) {
 			//When finish downloading before reach end.
@@ -118,7 +118,7 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 	if (!nh) {
 		//Reaching the eof count as highwm
 		double time2 = (rng->total_len-rng->start-rng->len)/rng->grow;
-		if (rng->total_len == rng->start+rng->len)
+		if (fequ(rng->total_len, rng->start+rng->len))
 			time2 = 0;
 		if (time2 < time)
 			time = time2;

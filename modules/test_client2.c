@@ -1,15 +1,13 @@
+#define LOG_DOMAIN "testc"
 #include "client_behaviour.h"
 #include "p2p_common.h"
-
-#define LOG_DOMAIN "testc"
-
 #include "log.h"
 #include "sim.h"
 #include "user.h"
 #include "event.h"
 
 static struct node *s1, *s2, *c1, *c2;
-static struct resource *r;
+static id_t rid;
 
 struct user_def{
 	struct def_user d;
@@ -36,8 +34,8 @@ void test_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct def_user *d = ue->d;
 	if (ue->type == NEW_CONNECTION) {
-		client_new_connection(r->resource_id, 0, s1, c2, s);
-		client_start_play(c2, r->resource_id, s);
+		client_new_connection(rid, 0, s1, c2, s);
+		client_start_play(c2, rid, s);
 		return;
 	}
 	client_next_state_from_event(e, s);
@@ -73,14 +71,14 @@ int tc2_init(struct sim_state *s){
 	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 100;
 
 	struct resource_model *rm = talloc(1, struct resource_model);
-	rm->lvar = 10;
-	rm->lm = 1500;
-	rm->brvar = 10;
-	rm->brm = 2600;
+	rm->lvar = 0;
+	rm->lm = 15;
+	rm->brvar = 0;
+	rm->brm = 300;
 	rm->prob = 1;
 	skip_list_insert(&ds->rms, &rm->models, &rm->prob, resource_model_cmp);
 
-	id_t rid = new_resource(rm, s);
+	rid = new_resource(rm, s);
 	struct def_user *d = c1->user_data;
 	d->lowwm = 1000;
 	d->highwm = 2000;
@@ -92,8 +90,8 @@ int tc2_init(struct sim_state *s){
 	c2->state = N_IDLE;
 	s1->state = N_SERVER;
 
-	client_new_connection(r->resource_id, 0, s1, c1, s);
-	client_start_play(c1, r->resource_id, s);
+	client_new_connection(rid, 0, s1, c1, s);
+	client_start_play(c1, rid, s);
 
 	struct user_event *ue = talloc(1, struct user_event);
 	ue->type = NEW_CONNECTION;
