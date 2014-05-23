@@ -4,9 +4,8 @@
 #include "store.h"
 #include "event.h"
 
-void range_calc_flow_events(struct flow *f, double now);
+void range_calc_and_requeue_events(struct flow *f, struct sim_state *s);
 void range_merge_with_next(struct range *rng, struct sim_state *s);
-void range_calc_and_queue_event(struct flow *f, struct sim_state *s);
 
 __attribute__((pure))
 static inline int range_include_cmp(struct skip_list_head *a, void *_key){
@@ -55,7 +54,7 @@ range_get_by_start(struct resource *rsrc, int start){
 static inline void range_update_consumer_events(struct range *rng, struct sim_state *s){
 	struct flow *f;
 	list_for_each_entry(f, &rng->consumers, consumers)
-		range_calc_and_queue_event(f, s);
+		range_calc_and_requeue_events(f, s);
 }
 
 static inline struct range *

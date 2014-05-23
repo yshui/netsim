@@ -124,9 +124,6 @@ double bwspread(struct flow *f, double amount, int dir,
 	list_for_each_entry(nf, h, conns[dir]){
 		if (nf == f)
 			continue;
-		//Don't increase speed of a closing connection
-		if (nf->closing && amount < eps)
-			continue;
 		//lshare = the potential upbound of the connection
 		//       = share of connection on the other end)
 		//	   when amount < 0 (so the speed is going to increase);
@@ -134,8 +131,6 @@ double bwspread(struct flow *f, double amount, int dir,
 		//	 = share of connection on this end
 		//	   when amount > 0;
 		double lshare = nf->bwupbound*max/total;
-		if (nf->closing)
-			lshare = 0;
 		if (amount < eps) {
 			lshare = get_share(nf, !dir);
 			if (nf->speed[dir] < lshare)
@@ -156,14 +151,8 @@ double bwspread(struct flow *f, double amount, int dir,
 	list_for_each_entry(nf, h, conns[dir]){
 		if (nf == f)
 			continue;
-		if (nf->closing && amount < eps) {
-			log_info("Connection %d closing\n", nf->flow_id);
-			continue;
-		}
 		double lshare = nf->bwupbound*max/total;
 		double delta;
-		if (nf->closing)
-			lshare = 0;
 		if (amount < eps) {
 			lshare = get_share(nf, !dir);
 			if (nf->speed[dir] < lshare) {
@@ -180,7 +169,7 @@ double bwspread(struct flow *f, double amount, int dir,
 				//queue speed increase event to the other end
 				queue_speed_event(nf, !dir, new_speed, s);
 				//Update ranges
-				range_calc_and_queue_event(nf->f, s);
+				range_calc_and_requeue_events(nf, s);
 			}else
 				log_info("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
@@ -195,7 +184,7 @@ double bwspread(struct flow *f, double amount, int dir,
 				//e > spread_amount is impossible, otherwise this
 				//connection's speed would exceed its share.
 				//Update ranges
-				range_calc_and_queue_event(nf->f, s);
+				range_calc_and_requeue_events(nf, s);
 			}else
 				log_info("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
@@ -263,7 +252,6 @@ struct flow *flow_create(struct node *src, struct node *dst,
 	f->peer[1] = dst;
 	f->speed[1] = 0;
 	f->delay = s->dlycalc(src->user_data, dst->user_data);
-	f->closing = 0;
 	INIT_LIST_HEAD(&f->spd_evs);
 	list_add(&f->conns[0], &src->conns[0]);
 	list_add(&f->conns[1], &dst->conns[1]);
@@ -320,7 +308,7 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 
 	if (se->type == P_RCV) {
 		//Update the flow and its drng
-		range_calc_and_queue_event(f, s);
+		range_calc_and_requeue_events(f, s);
 		range_update_consumer_events(f->drng, s);
 	} else if (delta > 0) {
 		//SND speed increased, notify the RCV end
@@ -344,7 +332,6 @@ void speed_change_free(struct event *e, struct sim_state *s){
 
 void flow_done_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
-	f->done = NULL;
 	range_update(f->drng, s);
 	struct skip_list_head *next = f->drng->ranges.next[0];
 	if (next) {
@@ -361,18 +348,13 @@ void flow_done_cleaner(struct event *e, struct sim_state *s){
 
 void flow_throttle_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
-	f->drain = NULL;
 	range_update(f->drng, s);
 	//If f->srng->producer == NULL, this should be a FLOW_DONE event
 	assert(f->srng->producer);
 	double delta = f->srng->producer->speed[1]-f->speed[0];
 	assert(delta < 0);
+	//Speed throttle don't have delay, this is a hack
 	bwspread(f, delta, 0, P_SND, s);
-	assert(fequ(f->speed[0], f->srng->producer->speed[1]));
-
-	//Queue a event to notify the dst this speed change
-	queue_speed_event(f, P_RCV, f->speed[0], s);
-
-	//Recalculate the drain and done event
-	range_calc_and_queue_event(f, s);
+	delta = f->srng->producer->speed[1]-f->speed[1];
+	bwspread(f, delta, 0, P_RCV, s);
 }

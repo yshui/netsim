@@ -36,8 +36,8 @@ void test_user_event(struct event *e, struct sim_state *s){
 	if (ue->type == NEW_CONNECTION) {
 		struct node *cand = server_picker1(rid, 0, c2, s);
 		client_new_connection(rid, 0, cand, c2, s);
-		cand = server_picker2(rid, 300, c2, s);
-		client_new_connection(rid, 300, cand, c2, s);
+		cand = server_picker2(rid, 1000, c2, s);
+		client_new_connection(rid, 1000, cand, c2, s);
 		client_start_play(c2, rid, s);
 		return;
 	}
@@ -78,7 +78,7 @@ int tc3_init(struct sim_state *s){
 	s2->maximum_bandwidth[0] = s2->maximum_bandwidth[1] = 100;
 	c1->maximum_bandwidth[0] = 100;
 	c1->maximum_bandwidth[1] = 100;
-	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 100;
+	c2->maximum_bandwidth[0] = c2->maximum_bandwidth[1] = 200;
 
 	struct resource_model *rm = talloc(1, struct resource_model);
 	rm->lvar = 0;

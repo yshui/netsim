@@ -45,7 +45,6 @@ struct flow {
 	double bwupbound;
 	double speed[2];
 	double delay;
-	int closing;
 	//outbound/src/snd = [0], inbound/dst/rcv = [1]
 	//{inbound,outbound}_max = sum of bwupbound
 	//When {inbound,outbound}_max < {inbound,outbound}, all connections
@@ -71,7 +70,6 @@ struct flow {
 	//
 	//So the maximum speed possible is min(snd_spd_share, rcv_spd_share).
 	struct node *peer[2];
-	struct flow *f; //Might be null
 	struct list_head conns[2];
 	struct list_head spd_evs;
 	//This is a directional flow

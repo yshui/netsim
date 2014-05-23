@@ -52,7 +52,7 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	nf->drng->last_update = s->now;
 	nf->srng = rng;
 	nf->resource_id = rid;
-	range_calc_flow_events(nf, s->now);
+	range_calc_and_requeue_events(nf, s);
 	list_add(&nf->consumers, &rng->consumers);
 
 	//update prev range's events
@@ -60,7 +60,7 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	if (ph != &dr->ranges) {
 		//Not the first range
 		struct range *prng = skip_list_entry(ph, struct range, ranges);
-		range_calc_and_queue_event(prng->producer, s);
+		range_calc_and_requeue_events(prng->producer, s);
 	}
 
 	return nf;

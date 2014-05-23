@@ -49,6 +49,7 @@ int main(int argc, const char **argv){
 
 	while(!skip_list_empty(&s->events)){
 		struct event *e = event_pop(s);
+		enum event_type et = e->type;
 		if (s->now > e->time) {
 			log_err("Time travaling! %lf -> %lf\n", s->now, e->time);
 			abort();
@@ -56,7 +57,7 @@ int main(int argc, const char **argv){
 		s->now = e->time;
 		log_debug("Pop event %d %lf\n", e->type, e->time);
 		struct event_handler *eh;
-		list_for_each_entry(eh, &s->handlers[e->type], handlers)
+		list_for_each_entry(eh, &s->handlers[et], handlers)
 			eh->f(e, s);
 	}
 	return 0;

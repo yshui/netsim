@@ -13,9 +13,18 @@
 //considered as well.
 //(note after drain event the srng may still be growing, so instead of closing
 //the connection, we throttle the send speed).
-void range_calc_flow_events(struct flow *f, double now){
-	f->drain = f->done = NULL;
-	if (f->speed[1] < eps)
+void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
+	if (!f)
+		return;
+	event_remove(f->done);
+	event_remove(f->drain);
+	range_update(f->srng, s);
+	range_update(f->drng, s);
+	if (!f->drain)
+		f->drain = event_new(0, 0, f);
+	if (!f->done)
+		f->done = event_new(0, 0, f);
+	if (f->speed[0] < eps)
 		return;
 	struct range *srng = f->srng;
 	struct range *drng = f->drng;
@@ -23,20 +32,25 @@ void range_calc_flow_events(struct flow *f, double now){
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
 	double sgrow = srng->producer ? srng->producer->speed[1] : 0;
-	double fbw = f->speed[1];
+	double fbw = f->speed[0];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
-	assert(srng->len > drng_start);
+	assert(srng->len >= drng_start);
 	double drain_time = (srng->len-drng_start)/(fbw-sgrow);
 
-	if (!srng->producer)
+	if (!srng->producer) {
 		//Don't have a producer, generate a DRAIN event
-		f->drain = event_new(now+(srng->len-drng_start)/fbw,
-				     FLOW_DRAIN, f);
-	else if (drain_time < srng->producer->done->time &&
-		 sgrow < fbw+eps)
+		f->drain->time = s->now+(srng->len-drng_start)/fbw;
+		f->drain->type = FLOW_DRAIN;
+		event_add(f->drain, s);
+	} else if (drain_time+s->now < srng->producer->done->time &&
+		 sgrow < fbw) {
+		//sgrow == fbw would be fine
 		//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
-		f->drain = event_new(now+drain_time, FLOW_SPEED_THROTTLE, f);
+		f->drain->time = s->now+drain_time;
+		f->drain->type = FLOW_SPEED_THROTTLE;
+		event_add(f->drain, s);
+	}
 
 	assert(drng->producer == f);
 	nh = drng->ranges.next[0];
@@ -48,27 +62,12 @@ void range_calc_flow_events(struct flow *f, double now){
 	double done_time = (npos-drng->start-drng->len)/(double)fbw;
 	//Less or equal to here, we always handle done event first. Since when
 	//its done, we don't need to deal with drain or throttle.
-	if (now+done_time < f->drain->time+eps) {
-		f->done = f->drain;
-		f->drain = NULL;
-		f->done->time = now+done_time;
+	if (s->now+done_time < f->drain->time+eps || !f->drain->active) {
+		event_remove(f->drain);
+		f->done->time = s->now+done_time;
 		f->done->type = FLOW_DONE;
-	}else
-		f->done = NULL;
-}
-
-void range_calc_and_queue_event(struct flow *f, struct sim_state *s){
-	if (!f)
-		return;
-	event_remove(f->done);
-	event_remove(f->drain);
-	event_free(f->done);
-	event_free(f->drain);
-	range_update(f->srng, s);
-	range_update(f->drng, s);
-	range_calc_flow_events(f, s->now);
-	event_add(f->done, s);
-	event_add(f->drain, s);
+		event_add(f->done, s);
+	}
 }
 
 //Merge a range with its successor, must be called after every ranges' length
@@ -103,14 +102,14 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	struct flow *f;
 	list_for_each_entry(f, &rng->consumers, consumers) {
 		range_update(f->drng, s);
-		range_calc_and_queue_event(f, s);
+		range_calc_and_requeue_events(f, s);
 	}
 
 	if (rng->producer) {
 		//Add to consumers
 		range_update(rng->producer->srng, s);
 		range_update(rng->producer->drng, s);
-		range_calc_and_queue_event(rng->producer, s);
+		range_calc_and_requeue_events(rng->producer, s);
 	}
 }
 
