@@ -203,6 +203,7 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	if (!f)
 		return -1;
 
+	resource_add_provider(f->resource_id, client, s);
 	if (client->state != N_PLAYING && client->state != N_STALE)
 		//state == N_DONE, N_IDLE, N_OFFLINE
 		return 0;
@@ -214,7 +215,6 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	client_highwm_event(prng, s);
 
 	//Add resource to holders
-	resource_add_provider(f->resource_id, client, s);
 	return 0;
 }
 
@@ -319,26 +319,28 @@ is_resource_usable(struct resource *r, size_t start, struct sim_state *s){
 static inline bool
 is_node_usable(struct node *n, id_t rid, size_t start, struct sim_state *s){
 	struct resource *r = store_get(n->store, rid);
+	assert(r->owner == n);
 	if (!r)
 		return false;
 	return is_resource_usable(r, start, s);
 }
 
 struct node *
-server_picker1(id_t rid, size_t start, struct sim_state *s){
+server_picker1(id_t rid, size_t start, struct node *client, struct sim_state *s){
 	//Only choose the servers
 	struct def_sim *ds = s->user_data;
 	struct server *ss = NULL;
 	bool found = false;
 	list_for_each_entry(ss, &ds->servers, servers)
-		if (is_node_usable(ss->n, rid, start ,s))
+		if (is_node_usable(ss->n, rid, start ,s) &&
+		    !is_connected(ss->n, client))
 			return ss->n;
 	return NULL;
 }
 
 struct node *
-server_picker2(id_t rid, size_t start, struct sim_state *s){
-	//Choose any node
+server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s){
+	//Choose any non-server nodes
 	struct def_sim *ds = s->user_data;
 	struct resource_entry *re = NULL;
 	HASH_FIND_INT(ds->rsrcs, &rid, re);
@@ -347,7 +349,8 @@ server_picker2(id_t rid, size_t start, struct sim_state *s){
 
 	struct resource_provider *rp, *tmp;
 	HASH_ITER(hh, re->holders, rp, tmp)
-		if (is_resource_usable(rp->r, start, s))
+		if (is_resource_usable(rp->r, start, s) &&
+		    !is_connected(rp->r->owner, client))
 			return rp->r->owner;
 	return NULL;
 }

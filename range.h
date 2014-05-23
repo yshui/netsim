@@ -32,7 +32,7 @@ static inline struct range *
 range_get(struct resource *rsrc, int start){
 	struct skip_list_head *s = &rsrc->ranges, *r;
 	struct range *rng;
-	r = skip_list_find(s, &start, range_include_cmp);
+	r = skip_list_find_ge(s, &start, range_include_cmp);
 	rng = skip_list_entry(r, struct range, ranges);
 	if (!r)
 		return NULL;
@@ -44,19 +44,11 @@ range_get(struct resource *rsrc, int start){
 static inline struct range *
 range_get_by_start(struct resource *rsrc, int start){
 	struct skip_list_head *s = &rsrc->ranges, *r;
-	struct range *rng;
-	r = skip_list_find(s, &start, range_start_cmp);
+	struct range *rng, *nrng;
+	r = skip_list_find_le(s, &start, range_start_cmp);
 	rng = skip_list_entry(r, struct range, ranges);
 	if (!r)
 		return NULL;
-	if (rng->start > start) {
-		r = r->prev[0];
-		if (r == &rsrc->ranges)
-			return NULL;
-		rng = skip_list_entry(r, struct range, ranges);
-		assert(rng->start <= start);
-		return rng;
-	}
 	return rng;
 }
 

@@ -28,7 +28,7 @@ int main(){
 		int dr = random()%6;
 		if(dr == 2){
 			int kkk = NK;
-			struct skip_list_head *kk = skip_list_find(&head, &kkk, cmp);
+			struct skip_list_head *kk = skip_list_find_ge(&head, &kkk, cmp);
 			struct x *tx = skip_list_entry(kk, struct x, h);
 			if(kk){
 				log_debug("Finding %d, found %d, delete\n", kkk, tx->key);

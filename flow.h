@@ -28,3 +28,11 @@ void speed_change_free(struct event *e, struct sim_state *s);
 void flow_done_handler(struct event *e, struct sim_state *s);
 void flow_done_cleaner(struct event *e, struct sim_state *s);
 void flow_throttle_handler(struct event *e, struct sim_state *s);
+
+static inline bool
+is_connected(struct node *src, struct node *dst){
+	struct node *tdst = NULL;
+	HASH_FIND(peersh, src->peers, &dst->node_id, sizeof(dst->node_id), tdst);
+	assert(!tdst || tdst == dst);
+	return tdst != NULL;
+}

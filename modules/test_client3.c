@@ -34,7 +34,11 @@ void test_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct def_user *d = ue->d;
 	if (ue->type == NEW_CONNECTION) {
-		client_new_connection(rid, 2000, s2, c1, s);
+		struct node *cand = server_picker1(rid, 0, c2, s);
+		client_new_connection(rid, 0, cand, c2, s);
+		cand = server_picker2(rid, 300, c2, s);
+		client_new_connection(rid, 300, cand, c2, s);
+		client_start_play(c2, rid, s);
 		return;
 	}
 	client_next_state_from_event(e, s);
@@ -52,6 +56,10 @@ double test_bandwidth(void *a, void *b){
 }
 
 int tc3_init(struct sim_state *s){
+	log_info("In this test:\n");
+	log_info("At t=0, s1->c1\n");
+	log_info("At t=12, s1->c2 start = 0, causing s1->c1 speed to decrease\n");
+	log_info("\tAnd c1->c2, to see if speed throttle works\n");
 	init_sim(s, 10);
 	struct def_sim *ds = s->user_data;
 	s->dlycalc = test_delay;
@@ -92,7 +100,9 @@ int tc3_init(struct sim_state *s){
 	c2->state = N_IDLE;
 	s1->state = N_SERVER;
 
-	client_new_connection(rid, 0, s1, c1, s);
+	struct node *cand = server_picker1(rid, 0, c1, s);
+
+	client_new_connection(rid, 0, cand, c1, s);
 	client_start_play(c1, rid, s);
 
 	struct user_event *ue = talloc(1, struct user_event);

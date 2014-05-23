@@ -251,7 +251,12 @@ void flow_close(struct flow *f, struct sim_state *s){
 //connection creation is always initiated by src
 struct flow *flow_create(struct node *src, struct node *dst,
 				     struct sim_state *s){
-	struct flow *f = talloc(1, struct flow);
+	struct flow *f;
+	struct node *tdst = NULL;
+	//Don't create multiple flow between same pair of nodes
+	HASH_FIND(peersh, src->peers, &dst->node_id, sizeof(dst->node_id), tdst);
+	assert(!tdst);
+	f = talloc(1, struct flow);
 	f->bwupbound =
 		s->bwcalc(src->user_data, dst->user_data);
 	f->peer[0] = src;
@@ -262,6 +267,7 @@ struct flow *flow_create(struct node *src, struct node *dst,
 	INIT_LIST_HEAD(&f->spd_evs);
 	list_add(&f->conns[0], &src->conns[0]);
 	list_add(&f->conns[1], &dst->conns[1]);
+	HASH_ADD(peersh, src->peers, node_id, sizeof(dst->node_id), dst);
 	src->total_bwupbound[0] += f->bwupbound;
 	dst->total_bwupbound[1] += f->bwupbound;
 

@@ -100,9 +100,10 @@ struct node {
 	void *user_data; //Used for calculate bandwidth between nodes
 	struct store *store;
 	struct list_head conns[2]; //Nodes connected with this node
+	struct node *peers; //Hash table of outbound peers
 	//Return true if the node decide to accept this request
 	id_t node_id;
-	UT_hash_handle hh;
+	UT_hash_handle hh, peersh;
 	enum node_state state;
 };
 
