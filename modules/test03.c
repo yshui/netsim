@@ -36,6 +36,7 @@ void test_sc(struct event *e, struct sim_state *s){
 }
 
 void test03_init(struct sim_state *s){
+	log_info("This test a second connection throttle the first connection\n");
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 

@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
+set(CMAKE_C_FLAGS_DEBUG "-gdwarf-4 -g3")
 
 add_executable(netsim
 	sim.c

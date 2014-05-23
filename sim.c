@@ -49,6 +49,7 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	nf->start = start;
 	nf->drng = node_new_range(dst, rid, start, 0);
 	nf->drng->producer = nf;
+	nf->drng->last_update = s->now;
 	nf->srng = rng;
 	nf->resource_id = rid;
 	range_calc_flow_events(nf, s->now);
@@ -61,14 +62,6 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 		struct range *prng = skip_list_entry(ph, struct range, ranges);
 		range_calc_and_queue_event(prng->producer, s);
 	}
-
-	id_t rand = random();
-	struct flow *of;
-	do {
-		HASH_FIND_INT(s->flows, &rand, of);
-	}while(of);
-	nf->flow_id = rand;
-	HASH_ADD_INT(s->flows, flow_id, nf);
 
 	return nf;
 }

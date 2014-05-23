@@ -213,6 +213,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 	bwspread(f, f->speed[1], 1, 1, s);
 	list_del(&f->conns[0]);
 	list_del(&f->conns[1]);
+	log_info("Remove flow %d %p\n", f->flow_id, f);
 	HASH_DEL(s->flows, f);
 
 	//Remove the corresponding flow from consumer
@@ -236,13 +237,11 @@ void flow_close(struct flow *f, struct sim_state *s){
 	event_remove(f->drain);
 	event_free(f->done);
 	event_free(f->drain);
-	HASH_DEL(s->flows, f);
-	free(f);
-
 
 	//Log connection close
 	uint8_t type = 0;
 	write_record(0, R_CONN_CLOSE, f->flow_id, 1, &type, s);
+	free(f);
 }
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
@@ -298,6 +297,12 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	//if (e->qtime < se->c->pending_event[se->type])
 	//	return;
 
+	if (se->type == P_RCV) {
+		//Update the range before the speed is changed
+		range_update(f->drng, s);
+		range_update(f->srng, s);
+	}
+
 	bwspread(f, se->speed-f->speed[se->type], se->type, 0, s);
 	//The pending event has been handled now.
 	f->pending_event[!se->type] = 0;
@@ -306,11 +311,7 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 
 	if (se->type == P_RCV){
 		//Update the flow and its drng
-		range_update(f->drng, s);
-		range_update(f->srng, s);
-
 		range_calc_and_queue_event(f, s);
-
 		range_update_consumer_events(f->drng, s);
 	}
 

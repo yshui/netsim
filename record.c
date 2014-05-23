@@ -70,12 +70,15 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 	switch(bytes){
 		case 1:
 			*(a.u8p) = *(uint8_t *)value;
+			a.u8p++;
 			break;
 		case 2:
 			*(a.u16p) = htons(*(uint16_t *)value);
+			a.u16p++;
 			break;
 		case 4:
 			*(a.u32p) = htonl(*(uint32_t *)value);
+			a.u32p++;
 			break;
 		case -1:
 			tmp = *(double *)value;
@@ -84,6 +87,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 			a.u32p++;
 			tmp = tmp-((int)tmp);
 			*(a.u16p) = htons(tmp*1000);
+			a.u16p++;
 			break;
 		default:
 			assert(false);
@@ -98,6 +102,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 		n += 6;
 
 	*(uint32_t *)s->record_head = htonl(n);
+	s->record_tail = a.u8p;
 }
 
 void open_record(const char *filename, int create, struct sim_state *s){

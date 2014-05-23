@@ -36,6 +36,7 @@ void test_sc(struct event *e, struct sim_state *s){
 }
 
 void test02_init(struct sim_state *s){
+	log_info("This test open a second connection after the first connection is closed\n");
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 

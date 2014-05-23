@@ -26,7 +26,8 @@ void range_calc_flow_events(struct flow *f, double now){
 	double fbw = f->speed[1];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
-	double drain_time = (srng->len-drng_start+1)/(sgrow-fbw);
+	assert(srng->len > drng_start);
+	double drain_time = (srng->len-drng_start)/(fbw-sgrow);
 
 	if (!srng->producer)
 		//Don't have a producer, generate a DRAIN event
@@ -47,7 +48,7 @@ void range_calc_flow_events(struct flow *f, double now){
 	double done_time = (npos-drng->start-drng->len)/(double)fbw;
 	//Less or equal to here, we always handle done event first. Since when
 	//its done, we don't need to deal with drain or throttle.
-	if (done_time < f->drain->time+eps) {
+	if (now+done_time < f->drain->time+eps) {
 		f->done = f->drain;
 		f->drain = NULL;
 		f->done->time = now+done_time;

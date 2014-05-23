@@ -20,6 +20,7 @@ void test_user_done(struct event *e, struct sim_state *s){
 }
 
 void test01_init(struct sim_state *s){
+	log_info("This test a single thread download\n");
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 

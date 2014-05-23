@@ -49,6 +49,7 @@ void test_sc(struct event *e, struct sim_state *s){
 }
 
 void test05_init(struct sim_state *s){
+	log_info("This test: test04+record");
 	open_record("R", 1, s);
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;

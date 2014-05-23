@@ -48,6 +48,7 @@ void test_sc(struct event *e, struct sim_state *s){
 }
 
 void test04_init(struct sim_state *s){
+	log_info("This test a second speed change before the first speed change reach the dst\n");
 	s->dlycalc = test_delay;
 	s->bwcalc = test_bandwidth;
 
