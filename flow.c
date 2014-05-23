@@ -23,8 +23,6 @@ queue_speed_event(struct flow *f, int dir,
 	list_add(&se->spd_evs, &f->spd_evs);
 
 	event_add(se->e, s);
-
-	f->pending_event[!dir] = s->now+f->delay;
 }
 
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -173,9 +171,14 @@ double bwspread(struct flow *f, double amount, int dir,
 				log_info("Connection (%d->%d) share: %lf, now: %lf, target: %lf\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare,
 					 nf->speed[dir], nf->speed[dir]-amount*delta/e);
-				nf->speed[dir] -= amount*delta/e;
+				double new_speed = nf->speed[dir]-amount*delta/e;
+				if (dir == P_SND)
+					//The rcv speed can't increase by itself.
+					nf->speed[dir] -= new_speed;
+				else
+					log_info("dir == P_RCV, don't increase speed, notify the other end only.\n");
 				//queue speed increase event to the other end
-				queue_speed_event(nf, !dir, nf->speed[dir], s);
+				queue_speed_event(nf, !dir, new_speed, s);
 				//Update ranges
 				range_calc_and_queue_event(nf->f, s);
 			}else
@@ -303,16 +306,19 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 		range_update(f->srng, s);
 	}
 
-	bwspread(f, se->speed-f->speed[se->type], se->type, 0, s);
-	//The pending event has been handled now.
-	f->pending_event[!se->type] = 0;
+	double delta = se->speed-f->speed[se->type];
+
+	bwspread(f, delta, se->type, 0, s);
 
 	list_del(&se->spd_evs);
 
-	if (se->type == P_RCV){
+	if (se->type == P_RCV) {
 		//Update the flow and its drng
 		range_calc_and_queue_event(f, s);
 		range_update_consumer_events(f->drng, s);
+	} else if (delta > 0) {
+		//SND speed increased, notify the RCV end
+		queue_speed_event(f, P_RCV, f->speed[0], s);
 	}
 
 

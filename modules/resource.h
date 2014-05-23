@@ -15,7 +15,7 @@ struct resource_model {
 };
 
 struct resource_provider {
-	struct node *n;
+	struct resource *r;
 	int node_id;
 	UT_hash_handle hh;
 };

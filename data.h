@@ -45,8 +45,6 @@ struct flow {
 	double bwupbound;
 	double speed[2];
 	double delay;
-	//when will the last event sent by [dir] reach [!dir]
-	double pending_event[2];
 	int closing;
 	//outbound/src/snd = [0], inbound/dst/rcv = [1]
 	//{inbound,outbound}_max = sum of bwupbound

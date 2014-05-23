@@ -25,6 +25,7 @@ void print_range(struct resource *r){
 	struct skip_list_head *h = r->ranges.next[0];
 	while(h){
 		struct range *rng = skip_list_entry(h, struct range, ranges);
+		assert(rng->start+rng->len <= rng->total_len);
 		log_info("Range [%zu, %lf)\n", rng->start, rng->start+rng->len);
 		h = h->next[0];
 	}

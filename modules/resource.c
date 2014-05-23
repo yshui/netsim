@@ -3,6 +3,7 @@
 #include "gaussian.h"
 #include "p2p_common.h"
 #include "event.h"
+#include "store.h"
 
 #include <stdlib.h>
 
@@ -88,8 +89,12 @@ void resource_add_provider(id_t rid, struct node *n, struct sim_state *s){
 	if (tp)
 		return;
 
+	struct resource *r = store_get(n->store, rid);
+	if (!r)
+		return;
+
 	struct resource_provider *p = talloc(1, struct resource_provider);
-	p->n = n;
+	p->r = r;
 	p->node_id = n->node_id;
 	HASH_ADD_INT(re->holders, node_id, p);
 }

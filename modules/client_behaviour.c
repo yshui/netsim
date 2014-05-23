@@ -307,22 +307,47 @@ void client_next_event(struct node *n, struct sim_state *s){
 	event_add(e, s);
 }
 
-bool is_server_usable(struct node *n, id_t rid, size_t start){
-	struct resource *r = store_get(n->store, rid);
-	if (!r)
-		return false;
-	struct range *rng = range_get(r, start);
-	if (!rng)
+static inline bool
+is_resource_usable(struct resource *r, size_t start, struct sim_state *s){
+	struct range *rng = range_get_by_start(r, start);
+	range_update(rng, s);
+	if (rng->start+rng->len <= start)
 		return false;
 	return true;
 }
 
-void server_picker1(id_t rid, size_t start, struct sim_state *s){
+static inline bool
+is_node_usable(struct node *n, id_t rid, size_t start, struct sim_state *s){
+	struct resource *r = store_get(n->store, rid);
+	if (!r)
+		return false;
+	return is_resource_usable(r, start, s);
+}
+
+struct node *
+server_picker1(id_t rid, size_t start, struct sim_state *s){
 	//Only choose the servers
 	struct def_sim *ds = s->user_data;
-	struct server *ss;
-	list_for_each_entry(ss, &ds->servers, servers){
-		if (is_server_usable(ss->n, rid, start))
-			break;
-	}
+	struct server *ss = NULL;
+	bool found = false;
+	list_for_each_entry(ss, &ds->servers, servers)
+		if (is_node_usable(ss->n, rid, start ,s))
+			return ss->n;
+	return NULL;
+}
+
+struct node *
+server_picker2(id_t rid, size_t start, struct sim_state *s){
+	//Choose any node
+	struct def_sim *ds = s->user_data;
+	struct resource_entry *re = NULL;
+	HASH_FIND_INT(ds->rsrcs, &rid, re);
+	if (!re)
+		return NULL;
+
+	struct resource_provider *rp, *tmp;
+	HASH_ITER(hh, re->holders, rp, tmp)
+		if (is_resource_usable(rp->r, start, s))
+			return rp->r->owner;
+	return NULL;
 }

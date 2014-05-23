@@ -107,6 +107,7 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	}
 
 	if (rng->producer) {
+		//Add to consumers
 		range_update(rng->producer->srng, s);
 		range_update(rng->producer->drng, s);
 		range_calc_and_queue_event(rng->producer, s);
