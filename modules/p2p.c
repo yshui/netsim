@@ -1,5 +1,7 @@
 #include <unistd.h>
 
+#define LOG_DOMAIN "p2p"
+
 #include "client_behaviour.h"
 #include "cloud_behaviour.h"
 #include "record.h"
@@ -11,7 +13,7 @@ struct resource_model rrm[] = {
 };
 const int nrm = 3;
 const int ncloud = 16;
-const int nuser = 5;
+const int nuser = 50;
 const int nsvr = 2;
 
 void p2p_user_event(struct event *e, struct sim_state *s){

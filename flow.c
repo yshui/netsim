@@ -49,12 +49,12 @@ double bwspread(struct flow *f, double amount, int dir,
 	//can't be fulfilled.
 
 	//TODO Allow node to set arbitrary share for a connection.
-	log_info("[%.06lf] bwspread start, f (%d->%d), amount %lf, dir %d, close %d\n",
+	log_debug("[%.06lf] bwspread start, f (%d->%d), amount %lf, dir %d, close %d\n",
 		 s->now, f->peer[0]->node_id, f->peer[1]->node_id, amount, dir, close);
 
 	if (close) {
 		amount = -f->speed[dir];
-		log_info("Closing, New amount: %lf\n", amount);
+		log_debug("Closing, New amount: %lf\n", amount);
 	}
 
 	struct node *n = f->peer[dir];
@@ -72,17 +72,17 @@ double bwspread(struct flow *f, double amount, int dir,
 			//already exceeded it share.
 			//Event is queued to notify the other end the change
 			//is not possible
-			log_info("Connection's speed already exceeds its share, bwspread stop\n");
+			log_debug("Connection's speed already exceeds its share, bwspread stop\n");
 			queue_speed_event(f, !dir, f->speed[dir], s);
 			return 0;
 		}
 		queue_speed_event(f, !dir, share, s);
 		amount = share-f->speed[dir];
-		log_info("Share exceeded, New amount: %lf\n", amount);
+		log_debug("Share exceeded, New amount: %lf\n", amount);
 	}
 
 	if (amount > -eps && amount < eps) {
-		log_info("amount = %lf, nothing to do.\n", amount);
+		log_debug("amount = %lf, nothing to do.\n", amount);
 		return 0;
 	}
 
@@ -90,7 +90,7 @@ double bwspread(struct flow *f, double amount, int dir,
 	/* Special Cases */
 	if (total < max+eps) {
 		if (!close || total+f->bwupbound < max+eps) {
-			log_info("total(%lf) <= max(%lf), bwspread stop\n",
+			log_debug("total(%lf) <= max(%lf), bwspread stop\n",
 				 !close ? total : total+f->bwupbound, max);
 			//The total bwupbound is & was lesser than the peer's
 			//maximum bandwidth, every connection is at its upbound,
@@ -99,19 +99,19 @@ double bwspread(struct flow *f, double amount, int dir,
 			f->peer[dir]->bandwidth_usage[dir] += amount;
 			return amount;
 		}
-		log_info("total(%lf) <= max(%lf), but closing, and total+"
+		log_debug("total(%lf) <= max(%lf), but closing, and total+"
 			 "bwupbound(%lf) > max, bwspread continue\n", total,
 			 max, total+f->bwupbound);
 	}
 
 	if (amount > -eps && used+amount < max+eps) {
-		log_info("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
+		log_debug("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
 		//There're enough free bandwidth
 		n->bandwidth_usage[dir] += amount;
 		return amount;
 	}
 	if (used < max) {
-		log_info("used(%lf) < max(%lf)\n", used, max);
+		log_debug("used(%lf) < max(%lf)\n", used, max);
 		n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
 	}
 
@@ -139,12 +139,12 @@ double bwspread(struct flow *f, double amount, int dir,
 			e += nf->speed[dir]-lshare;
 	}
 
-	log_info("e = %lf\n", e);
+	log_debug("e = %lf\n", e);
 
 	if (amount < eps && -amount > e) {
 		//Even we increase other connections' speed to their limit,
 		//there are still free speed left.
-		log_info("amount(%lf) < 0, e < -amount, new amount: %lf\n", amount, -e);
+		log_debug("amount(%lf) < 0, e < -amount, new amount: %lf\n", amount, -e);
 		n->bandwidth_usage[dir] += amount+e;
 		amount = -e;
 	}
@@ -157,7 +157,7 @@ double bwspread(struct flow *f, double amount, int dir,
 			lshare = get_share(nf, !dir);
 			if (nf->speed[dir] < lshare) {
 				delta = lshare - nf->speed[dir];
-				log_info("Connection (%d->%d) share: %lf, now: %lf, target: %lf\n",
+				log_debug("Connection (%d->%d) share: %lf, now: %lf, target: %lf\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare,
 					 nf->speed[dir], nf->speed[dir]-amount*delta/e);
 				double new_speed = nf->speed[dir]-amount*delta/e;
@@ -165,18 +165,18 @@ double bwspread(struct flow *f, double amount, int dir,
 					//The rcv speed can't increase by itself.
 					nf->speed[dir] = new_speed;
 				else
-					log_info("dir == P_RCV, don't increase speed, notify the other end only.\n");
+					log_debug("dir == P_RCV, don't increase speed, notify the other end only.\n");
 				//queue speed increase event to the other end
 				queue_speed_event(nf, !dir, new_speed, s);
 				//Update ranges
 				range_calc_and_requeue_events(nf, s);
 			}else
-				log_info("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
+				log_debug("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
 		} else if (amount > eps) {
 			if (nf->speed[dir] > lshare) {
 				delta = nf->speed[dir]-lshare;
-				log_info("Connection (%d->%d) share: %lf, now: %lf, target: %lf\n",
+				log_debug("Connection (%d->%d) share: %lf, now: %lf, target: %lf\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir], nf->speed[dir]-spread_amount*delta/e);
 				nf->speed[dir] -= spread_amount*delta/e;
 				//queue speed decrease event to the other end
@@ -186,11 +186,11 @@ double bwspread(struct flow *f, double amount, int dir,
 				//Update ranges
 				range_calc_and_requeue_events(nf, s);
 			}else
-				log_info("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
+				log_debug("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
 		}
 	}
-	log_info("bwspread done\n");
+	log_debug("bwspread done\n");
 	return spread_amount;
 }
 
@@ -205,7 +205,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 	bwspread(f, f->speed[1], 1, 1, s);
 	list_del(&f->conns[0]);
 	list_del(&f->conns[1]);
-	log_info("Remove flow %d %p\n", f->flow_id, f);
+	log_debug("Remove flow %d %p\n", f->flow_id, f);
 	HASH_DEL(s->flows, f);
 	HASH_DELETE(peersh, f->peer[0]->peers, f->peer[1]);
 
