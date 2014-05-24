@@ -5,6 +5,7 @@
 #define def_qselect(name, type) \
 static inline type * \
 qselect_##name(type *v, size_t nmemb, size_t k) { \
+	assert(nmemb > k); \
 	static type tmp; \
 	int i, st; \
 \

@@ -357,7 +357,12 @@ void client_new_play1(struct node *n, struct sim_state *s){
 	int cnt = ds->nsvr/2;
 	//Pick up a server
 	server_picker_opt1(n, distance_metric, &cnt, n, s);
+	assert(cnt);
+	struct node *n1 = ds->eval_table[0].n;
+	struct resource *r = store_get(n1->store, rid);
+	int strip = r->len/cnt;
 	int i;
-	for(i = 0; i < cnt; i++){
-	}
+	for(i = 0; i < cnt; i++)
+		client_new_connection(rid, i*strip, ds->eval_table[i].n, n, s);
+	client_start_play(n, rid, s);
 }

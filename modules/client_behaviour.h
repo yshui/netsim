@@ -18,6 +18,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s);
 void client_highwm_event(struct range *rng, struct sim_state *s);
 void client_speed_throttle(struct event *e, struct sim_state *s);
 void client_next_event(struct node *n, struct sim_state *s);
+void client_new_play1(struct node *n, struct sim_state *s);
 struct node *
 server_picker1(struct node *client, struct sim_state *s);
 struct node *
@@ -63,7 +64,7 @@ server_picker_opt1(struct node *client, eval_func opt, int *count,
 			ds->eval_table[c++].n = ss->n;
 		}
 	}
-	if (c < *count) {
+	if (c <= *count) {
 		*count = c;
 		return;
 	}

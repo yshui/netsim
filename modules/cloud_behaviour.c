@@ -22,13 +22,15 @@ void new_resource_handler1(id_t rid, struct sim_state *s){
 void cloud_online(struct node *n, struct sim_state *s){
 	//cloud nodes don't go away,
 	//they just online/offline
-	n->state = N_CLOUD;
+	struct def_user *d = n->user_data;
+	d->next_state = n->state = N_CLOUD;
 	write_record(0, R_NODE_STATE, n->node_id, sizeof(n->state), &n->state, s);
 }
 
 void cloud_offline(struct node *n, struct sim_state *s){
 	//cloud nodes don't go away,
 	//they just online/offline
-	n->state = N_OFFLINE;
+	struct def_user *d = n->user_data;
+	d->next_state = n->state = N_OFFLINE;
 	write_record(0, R_NODE_STATE, n->node_id, sizeof(n->state), &n->state, s);
 }

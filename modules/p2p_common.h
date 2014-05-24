@@ -40,7 +40,7 @@ enum ue_type {
 };
 
 struct user_event {
-	int type;
+	enum ue_type type;
 	struct def_user *d;
 	void *data;
 };
@@ -82,7 +82,8 @@ static inline struct node *
 p2p_new_server(struct sim_state *s){
 	struct node *n = p2p_new_node(s);
 	struct def_sim *ds = s->user_data;
-	n->state = N_SERVER;
+	struct def_user *d = n->user_data;
+	d->next_state = n->state = N_SERVER;
 	struct server *ss = talloc(1, struct server);
 	ss->n = n;
 	list_add(&ss->servers, &ds->servers);
@@ -112,6 +113,7 @@ static inline void
 init_sim(struct sim_state *s, int max){
 	struct def_sim *ds = talloc(1, struct def_sim);
 	INIT_LIST_HEAD(&ds->servers);
+	INIT_LIST_HEAD(&ds->cloud_nodes);
 	INIT_LIST_HEAD(&ds->rsrc_probs);
 	skip_list_init_head(&ds->rms);
 	ds->max_rsrc = max;
@@ -136,4 +138,23 @@ static inline int distance_metric(struct node *n, void *data){
 	d2 = c->user_data;
 	ans = d1->time_zone-d2->time_zone;
 	return ans < 0 ? -ans : ans;
+}
+
+static inline double distance_based_bw(void *_a, void *_b){
+	struct def_user *a = _a, *b = _b;
+	//Assmue linear decrease from 4000~1700
+	int d = a->time_zone-b->time_zone;
+	if (d < 0)
+		d = -d;
+	return 4000-100*d;
+}
+
+static inline double distance_based_delay(void *_a, void *_b){
+	//Assmue linear increase from 0~460ms
+	struct def_user *a = _a, *b = _b;
+	int d = a->time_zone-b->time_zone;
+	if (d < 0)
+		d = -d;
+	return 0.02*d;
+
 }
