@@ -1,12 +1,9 @@
 #pragma once
 
-#define _GNU_SOURCE
-
 #ifndef LOG_DOMAIN
-# define LOG_PREFIX "(missing log domain, file: " __BASE_FILE__ ") "
-#else
-# define LOG_PREFIX (LOG_DOMAIN ": ")
+# define LOG_DOMAIN "(missing log domain, file: " __BASE_FILE__ ") "
 #endif
+#define LOG_PREFIX (LOG_DOMAIN ": ")
 
 #include <stdbool.h>
 #include <stdarg.h>
@@ -29,26 +26,18 @@ extern int global_log_level;
 static inline void log_metav(int log_level, const char *fmt, va_list args){
 	if (log_level > global_log_level)
 		return;
-	char *buf;
-	vasprintf(&buf, fmt, args);
-
-	char *buf2 = (char *)malloc(strlen(buf)+strlen(LOG_PREFIX)+1);
-	strcpy(buf2, LOG_PREFIX);
-	strcpy(buf2+strlen(LOG_PREFIX), buf);
-
-	fputs(buf2, stderr);
-	free(buf);
-	free(buf2);
+	fprintf(stderr, "%s", LOG_PREFIX);
+	vfprintf(stderr, fmt, args);
 }
 
-static inline void __attribute__ ((format(printf, 2, 3)))
-log_meta(int log_level, const char *fmt, ...){
+static inline void __attribute__ ((format(printf, 3, 4)))
+log_meta(int log_level, const char *prefix, const char *fmt, ...){
 	va_list args;
 	va_start(args, fmt);
 	log_metav(log_level, fmt, args);
 }
 
-#define log_debug(...) log_meta(LOG_DEBUG, __VA_ARGS__)
-#define log_info(...) log_meta(LOG_INFO, __VA_ARGS__)
-#define log_warning(...) log_meta(LOG_WARNING, __VA_ARGS__)
-#define log_err(...) log_meta(LOG_ERR, __VA_ARGS__)
+#define log_debug(...) log_meta(LOG_DEBUG, LOG_PREFIX, __VA_ARGS__)
+#define log_info(...) log_meta(LOG_INFO, LOG_PREFIX, __VA_ARGS__)
+#define log_warning(...) log_meta(LOG_WARNING, LOG_PREFIX, __VA_ARGS__)
+#define log_err(...) log_meta(LOG_ERR, LOG_PREFIX, __VA_ARGS__)

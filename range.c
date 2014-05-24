@@ -24,7 +24,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 		f->drain = event_new(0, 0, f);
 	if (!f->done)
 		f->done = event_new(0, 0, f);
-	if (f->speed[0] < eps)
+	if (f->speed[1] < eps)
 		return;
 	struct range *srng = f->srng;
 	struct range *drng = f->drng;
@@ -32,7 +32,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 	struct skip_list_head *nh = srng->ranges.next[0];
 	int npos;
 	double sgrow = srng->producer ? srng->producer->speed[1] : 0;
-	double fbw = f->speed[0];
+	double fbw = f->speed[1];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
 	assert(srng->len >= drng_start);

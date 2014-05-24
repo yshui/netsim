@@ -2,7 +2,6 @@
 #include "resource.h"
 #include "sim.h"
 #include "common.h"
-#include "client_behaviour.h"
 
 struct def_user {
 	double bit_rate;
@@ -25,6 +24,11 @@ struct server {
 	struct list_head servers;
 };
 
+struct cloud_node {
+	struct node *n;
+	struct list_head cloud_nodes;
+};
+
 enum ue_type {
 	DONE_PLAY,
 	PAUSE_BUFFERING,
@@ -39,18 +43,29 @@ struct user_event {
 	void *data;
 };
 
+struct nv_pair {
+	struct node *n;
+	int val;
+};
+
 struct def_sim {
 	//Resource with hit prob
 	//The prob is estimated using zipf distribution
 	//See: http://home.ifi.uio.no/~griff/papers/62.pdf
 	struct list_head rsrc_probs;
+	//Servers are immutable
 	struct list_head servers;
+	struct list_head cloud_nodes;
 	struct skip_list_head rms;
 	struct resource_entry *rsrcs;
 	//resource number limit
 	int max_rsrc, nrsrc;
+	int nsvr;
 	int start_hour;//Start hour in UTC+0
+	struct nv_pair *eval_table;
 };
+
+#include "client_behaviour.h"
 
 static inline struct node *
 p2p_new_node(struct sim_state *s){

@@ -353,8 +353,11 @@ void flow_throttle_handler(struct event *e, struct sim_state *s){
 	assert(f->srng->producer);
 	double delta = f->srng->producer->speed[1]-f->speed[0];
 	assert(delta < 0);
+	range_update(f->drng, s);
+	range_update(f->srng, s);
 	//Speed throttle don't have delay, this is a hack
-	bwspread(f, delta, 0, P_SND, s);
+	bwspread(f, delta, P_SND, 0, s);
 	delta = f->srng->producer->speed[1]-f->speed[1];
-	bwspread(f, delta, 0, P_RCV, s);
+	bwspread(f, delta, P_RCV, 0, s);
+	range_calc_and_requeue_events(f, s);
 }

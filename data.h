@@ -89,6 +89,7 @@ enum node_state {
 	N_DONE,
 	N_IDLE,
 	N_SERVER,
+	N_CLOUD,
 };
 
 struct node {
@@ -133,7 +134,7 @@ struct event {
 	enum event_type type;
 	//time: when will the event be triggered
 	//qtime: when is this event queued
-	double time, qtime;
+	double time;
 	bool active;
 	void *data;
 	//struct sim_state *s;

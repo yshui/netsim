@@ -30,11 +30,15 @@ void test_sc(struct event *e, struct sim_state *s){
 	client_speed_change(e, s);
 }
 
+void test_user_throttle(struct event *e, struct sim_state *s){
+	client_speed_throttle(e, s);
+}
+
 void test_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct def_user *d = ue->d;
 	if (ue->type == NEW_CONNECTION) {
-		struct node *cand = server_picker1(rid, 0, c2, s);
+		struct node *cand = server_picker1(c2, s);
 		client_new_connection(rid, 0, cand, c2, s);
 		cand = server_picker2(rid, 1000, c2, s);
 		client_new_connection(rid, 1000, cand, c2, s);
@@ -71,6 +75,7 @@ int tc3_init(struct sim_state *s){
 	c2 = test_create_node(s);
 
 	sim_register_handler(FLOW_DONE, HNDR_USER, test_user_done, s);
+	sim_register_handler(FLOW_SPEED_THROTTLE, HNDR_USER, test_user_throttle, s);
 	sim_register_handler(USER, HNDR_USER, test_user_event, s);
 	sim_register_handler(SPEED_CHANGE, HNDR_USER, test_sc, s);
 
@@ -100,7 +105,7 @@ int tc3_init(struct sim_state *s){
 	c2->state = N_IDLE;
 	s1->state = N_SERVER;
 
-	struct node *cand = server_picker1(rid, 0, c1, s);
+	struct node *cand = server_picker1(c1, s);
 
 	client_new_connection(rid, 0, cand, c1, s);
 	client_start_play(c1, rid, s);

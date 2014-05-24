@@ -66,30 +66,27 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 	double time = (rng->start+rng->len-pos-limit)/(br-sgrow);
 	assert(rng->start+rng->len > pos+limit);
 
-	if (rng->producer) {
-		struct flow *f = rng->producer;
-		if ((f->done && time+s->now > f->done->time) ||
-				(f->drain && time+s->now > f->drain->time)) {
-			//The range will "done" before we hit low water mark.
-			//The low water mark event will be calculated when
-			//handling next done event. And at that time buf_pos
-			//is definitely still in this range.
+	struct flow *f = rng->producer;
+	//The range will "done" before we hit low water mark.
+	//The low water mark event will be calculated when
+	//handling next done event. And at that time buf_pos
+	//is definitely still in this range.
 
-			//Or
+	//Or
 
-			//The range will hit a speed throttle or eof before low
-			//water mark. The low water mark will be calculated at
-			//that time
-			return;
-		}
+	//The range will hit a speed throttle or eof before low
+	//water mark. The low water mark will be calculated at
+	//that time
+	if (!f ||
+	    ((!is_active(f->done) || time < f->done->time) &&
+	    (!is_active(f->drain) || time < f->drain->time))) {
+		ue = d->e->data;
+		d->e->time = time+s->now;
+		ue->type = PAUSE_BUFFERING;
+		ue->d = d;
+		ue->data = rng;
+		event_add(d->e, s);
 	}
-
-	ue = d->e->data;
-	d->e->time = time+s->now;
-	ue->type = PAUSE_BUFFERING;
-	ue->d = d;
-	ue->data = rng;
-	event_add(d->e, s);
 }
 
 void client_highwm_event(struct range *rng, struct sim_state *s){
@@ -129,8 +126,9 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 	}
 	time += s->now;
 	struct flow *f = rng->producer;
-	if (!f || ((!f->done || time < f->done->time) &&
-	    (!f->drain || time < f->drain->time))) {
+	if (!f ||
+	    ((!is_active(f->done) || time < f->done->time) &&
+	    (!is_active(f->drain) || time < f->drain->time))) {
 		d->e->time = time;
 		ue = d->e->data;
 		ue->type = DONE_BUFFERING;
@@ -259,6 +257,20 @@ void client_start_play(struct node *client, id_t rid, struct sim_state *s){
 	client_highwm_event(rng, s);
 }
 
+void client_speed_throttle(struct event *e, struct sim_state *s){
+	//Recalculate event is enough
+	struct flow *f = e->data;
+	struct def_user *d = f->peer[1]->user_data;
+
+	//update buffer_pos
+	if (f->peer[1]->state == N_PLAYING)
+		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
+	d->last_update = s->now;
+	client_lowwm_event(f->drng, s);
+	client_highwm_event(f->drng, s);
+}
+
+
 
 void client_speed_change(struct event *e, struct sim_state *s){
 	//Recalculate event is enough
@@ -307,34 +319,17 @@ void client_next_event(struct node *n, struct sim_state *s){
 	event_add(e, s);
 }
 
-static inline bool
-is_resource_usable(struct resource *r, size_t start, struct sim_state *s){
-	struct range *rng = range_get_by_start(r, start);
-	range_update(rng, s);
-	if (rng->start+rng->len <= start)
-		return false;
-	return true;
-}
-
-static inline bool
-is_node_usable(struct node *n, id_t rid, size_t start, struct sim_state *s){
-	struct resource *r = store_get(n->store, rid);
-	assert(r->owner == n);
-	if (!r)
-		return false;
-	return is_resource_usable(r, start, s);
-}
-
 struct node *
-server_picker1(id_t rid, size_t start, struct node *client, struct sim_state *s){
+server_picker1(struct node *client, struct sim_state *s){
 	//Only choose the servers
 	struct def_sim *ds = s->user_data;
 	struct server *ss = NULL;
 	bool found = false;
-	list_for_each_entry(ss, &ds->servers, servers)
-		if (is_node_usable(ss->n, rid, start ,s) &&
-		    !is_connected(ss->n, client))
+	list_for_each_entry(ss, &ds->servers, servers) {
+		//A server is always usable
+		if (!is_connected(ss->n, client))
 			return ss->n;
+	}
 	return NULL;
 }
 

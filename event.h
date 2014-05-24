@@ -13,7 +13,6 @@
 static inline void event_remove(struct event *e){
 	if (!e || !e->active)
 		return;
-	e->qtime = -1;
 	e->active = false;
 	skip_list_delete(&e->events);
 }
@@ -44,6 +43,11 @@ static inline void event_add(struct event *e, struct sim_state *s){
 	}
 	log_debug("Event add %d %lf\n", e->type, e->time);
 	e->active = true;
-	e->qtime = s->now;
 	skip_list_insert(&s->events, &e->events, &e->time, event_cmp);
+}
+
+static inline bool is_active(struct event *e){
+	if (!e)
+		return false;
+	return e->active;
 }

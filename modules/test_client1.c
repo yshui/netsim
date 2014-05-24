@@ -1,6 +1,7 @@
 #include "p2p_common.h"
 #include "client_behaviour.h"
 
+#undef LOG_DOMAIN
 #define LOG_DOMAIN "testc"
 
 #include "log.h"
