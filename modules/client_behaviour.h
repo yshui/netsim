@@ -17,6 +17,7 @@ void client_speed_change(struct event *e, struct sim_state *s);
 void client_lowwm_event(struct range *rng, struct sim_state *s);
 void client_highwm_event(struct range *rng, struct sim_state *s);
 void client_speed_throttle(struct event *e, struct sim_state *s);
+void client_next_event(struct node *n, struct sim_state *s);
 struct node *
 server_picker1(struct node *client, struct sim_state *s);
 struct node *

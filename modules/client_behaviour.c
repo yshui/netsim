@@ -8,7 +8,7 @@
 #include "skiplist.h"
 #include "list.h"
 #include "record.h"
-#include "p2p_common.h"
+#include "client_behaviour.h"
 
 #include "common.h"
 
@@ -348,4 +348,16 @@ server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s)
 		    !is_connected(rp->r->owner, client))
 			return rp->r->owner;
 	return NULL;
+}
+
+void client_new_play1(struct node *n, struct sim_state *s){
+	//Pick up a resource
+	id_t rid = resource_picker(s);
+	struct def_sim *ds = s->user_data;
+	int cnt = ds->nsvr/2;
+	//Pick up a server
+	server_picker_opt1(n, distance_metric, &cnt, n, s);
+	int i;
+	for(i = 0; i < cnt; i++){
+	}
 }

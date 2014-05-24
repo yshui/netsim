@@ -17,6 +17,8 @@ struct def_user {
 	struct event *e;
 	struct resource_provider *p;
 	int time_zone;
+	//0 = always online, 1 = not so
+	int type;
 };
 
 struct server {
@@ -63,9 +65,9 @@ struct def_sim {
 	int nsvr;
 	int start_hour;//Start hour in UTC+0
 	struct nv_pair *eval_table;
+	int eval_size;
+	double tvar, tm;
 };
-
-#include "client_behaviour.h"
 
 static inline struct node *
 p2p_new_node(struct sim_state *s){
@@ -84,6 +86,25 @@ p2p_new_server(struct sim_state *s){
 	struct server *ss = talloc(1, struct server);
 	ss->n = n;
 	list_add(&ss->servers, &ds->servers);
+
+	ds->nsvr++;
+	if (ds->nsvr > ds->eval_size) {
+		ds->eval_size <<= 1;
+		ds->eval_table = realloc(ds->eval_table,
+					 ds->eval_size*sizeof(struct nv_pair));
+	}
+	return n;
+}
+
+static inline struct node *
+p2p_new_cloud(struct sim_state *s){
+	struct node *n = p2p_new_node(s);
+	struct def_sim *ds = s->user_data;
+	n->state = N_OFFLINE;
+	struct cloud_node *cn = talloc(1, struct cloud_node);
+	cn->n = n;
+	list_add(&cn->cloud_nodes, &ds->cloud_nodes);
+
 	return n;
 }
 
@@ -95,6 +116,8 @@ init_sim(struct sim_state *s, int max){
 	skip_list_init_head(&ds->rms);
 	ds->max_rsrc = max;
 	s->user_data = ds;
+	ds->eval_size = 1;
+	ds->eval_table = talloc(1, struct nv_pair);
 }
 
 static inline double
@@ -103,4 +126,14 @@ get_break_by_hour(int hour){
 		return 1200;
 	else
 		return 3600;
+}
+
+static inline int distance_metric(struct node *n, void *data){
+	struct node *c = (struct node *)data;
+	int ans;
+	struct def_user *d1, *d2;
+	d1 = n->user_data;
+	d2 = c->user_data;
+	ans = d1->time_zone-d2->time_zone;
+	return ans < 0 ? -ans : ans;
 }

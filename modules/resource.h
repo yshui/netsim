@@ -9,8 +9,6 @@ struct resource_model {
 	double prob, lm, lvar;
 	//Mean and variance of bit rate
 	double brm, brvar;
-	//Mean and variance of time between releases
-	double tm, tvar;
 	struct skip_list_head models;
 };
 
@@ -41,3 +39,5 @@ static inline int resource_model_cmp(struct skip_list_head *h, void *key){
 void resource_add_provider(id_t rid, struct node *n, struct sim_state *s);
 id_t new_resource(struct resource_model *r, struct sim_state *s);
 void next_resource_event(struct sim_state *s);
+id_t new_resource_random(struct sim_state *s);
+id_t resource_picker(struct sim_state *s);

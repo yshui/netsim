@@ -1,22 +1,21 @@
 #include "data.h"
 #include "record.h"
-#include "p2p_common.h"
+#include "client_behaviour.h"
+#include "cloud_behaviour.h"
 
-static inline int opt1(struct node *n, void *data){
-	struct node *c = (struct node *)data;
-	int ans;
-	struct def_user *d1, *d2;
-	d1 = n->user_data;
-	d2 = c->user_data;
-	ans = d1->time_zone-d2->time_zone;
-	return ans < 0 ? -ans : ans;
-}
-void new_resource_handler1(struct event *e, struct sim_state *s){
+void new_resource_handler1(id_t rid, struct sim_state *s){
 	//Naive, fetch from nearest n/2 server
 	struct def_sim *ds = s->user_data;
-	int i;
-	for(i = 0; i < ds->nsvr/2; i++){
+	struct cloud_node *cn;
 
+	list_for_each_entry(cn, &ds->cloud_nodes, cloud_nodes) {
+		int cnt = ds->nsvr/2, i;
+		server_picker_opt1(cn->n, distance_metric, &cnt, cn->n, s);
+		assert(cnt);
+		struct resource *r = store_get(ds->eval_table[0].n->store, rid);
+		int split = r->len/cnt;
+		for(i = 0; i < cnt; i++)
+			client_new_connection(rid, i*split, ds->eval_table[i].n, cn->n, s);
 	}
 }
 
@@ -33,5 +32,3 @@ void cloud_offline(struct node *n, struct sim_state *s){
 	n->state = N_OFFLINE;
 	write_record(0, R_NODE_STATE, n->node_id, sizeof(n->state), &n->state, s);
 }
-
-
