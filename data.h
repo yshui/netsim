@@ -164,6 +164,8 @@ struct sim_state {
 	double (*bwcalc)(void *src, void *dst);
 	double (*dlycalc)(void *src, void *dst);
 	void *user_data;
+
+	bool exit;
 };
 
 

@@ -11,7 +11,7 @@ struct def_user {
 	//high water mark: start playing
 	int highwm, lowwm;
 	int buffer_pos;
-	int resource;
+	id_t resource;
 	double last_update, last_speed;
 	struct node *n;
 	struct event *e;
@@ -37,6 +37,7 @@ enum ue_type {
 	DONE_BUFFERING,
 	NEW_CONNECTION,
 	NEW_RESOURCE,
+	SIM_END,
 };
 
 struct user_event {

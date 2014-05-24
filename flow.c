@@ -207,6 +207,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 	list_del(&f->conns[1]);
 	log_info("Remove flow %d %p\n", f->flow_id, f);
 	HASH_DEL(s->flows, f);
+	HASH_DELETE(peersh, f->peer[0]->peers, f->peer[1]);
 
 	//Remove the corresponding flow from consumer
 	struct list_head *h = &f->spd_evs;

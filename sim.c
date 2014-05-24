@@ -39,6 +39,7 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	struct range *rng = range_get(dr, start);
 	if (rng) {
 		log_err("Trying to create a flow to a existing range.\n");
+		assert(false);
 		return NULL;
 	}
 

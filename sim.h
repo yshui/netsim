@@ -30,3 +30,8 @@ void print_range(struct resource *r){
 		h = h->next[0];
 	}
 }
+
+static inline
+void sim_end(struct sim_state *s){
+	s->exit = true;
+}

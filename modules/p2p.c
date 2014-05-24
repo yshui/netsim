@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "client_behaviour.h"
 #include "cloud_behaviour.h"
 #include "record.h"
@@ -9,25 +11,32 @@ struct resource_model rrm[] = {
 };
 const int nrm = 3;
 const int ncloud = 16;
-const int nuser = 100;
+const int nuser = 5;
 const int nsvr = 2;
 
 void p2p_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct def_user *d = ue->d;
-	struct node *n;
 	id_t rid;
 	switch(ue->type) {
 		case NEW_CONNECTION:
-			n = ue->data;
-			client_new_play1(n, s);
+			client_new_play1(ue->data, s);
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
 			new_resource_handler1(rid, s);
+			next_resource_event(s);
+			break;
+		case SIM_END:
+			sim_end(s);
+			log_info("[%.06lf] End simulation.\n", s->now);
 			break;
 		default:
 			client_next_state_from_event(e, s);
+			log_info("[%.06lf] Client %d %s -> %s, rid %d\n", s->now, d->n->node_id,
+				 strstate(d->n->state), strstate(d->next_state), d->resource);
+			if (ue->type == DONE_PLAY)
+				client_next_event(d->n, s);
 			client_handle_next_state(d->n, s);
 	}
 }
@@ -41,7 +50,7 @@ int p2p_init(struct sim_state *s){
 
 	struct def_sim *ds = s->user_data;
 	ds->tvar = 20;
-	ds->tm = 36000;
+	ds->tm = 1800;
 	int i;
 	for(i = 1; i < nrm; i++) {
 		rrm[i].prob += rrm[i-1].prob;
@@ -79,5 +88,10 @@ int p2p_init(struct sim_state *s){
 	sim_register_handler(FLOW_SPEED_THROTTLE, HNDR_USER, client_speed_throttle, s);
 	sim_register_handler(USER, HNDR_USER, p2p_user_event, s);
 	sim_register_handler(SPEED_CHANGE, HNDR_USER, client_speed_change, s);
+
+	struct user_event *ue = talloc(1, struct user_event);
+	ue->type = SIM_END;
+	struct event *e = event_new(100000, USER, ue);
+	event_add(e, s);
 	return 0;
 }

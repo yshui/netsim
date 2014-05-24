@@ -353,6 +353,13 @@ server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s)
 void client_new_play1(struct node *n, struct sim_state *s){
 	//Pick up a resource
 	id_t rid = resource_picker(s);
+	struct resource *ur = store_get(n->store, rid);
+	if (ur) {
+		//The resource is either downloaded,
+		//or downloading, don't start new connection
+		client_start_play(n, rid, s);
+		return;
+	}
 	struct def_sim *ds = s->user_data;
 	int cnt = ds->nsvr/2;
 	//Pick up a server

@@ -48,6 +48,8 @@ int main(int argc, const char **argv){
 	sim_register_handler(FLOW_SPEED_THROTTLE, HNDR_DEFAULT, flow_throttle_handler, s);
 
 	while(!skip_list_empty(&s->events)){
+		if (s->exit)
+			break;
 		struct event *e = event_pop(s);
 		enum event_type et = e->type;
 		if (s->now > e->time) {
