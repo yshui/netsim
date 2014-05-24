@@ -163,7 +163,7 @@ double bwspread(struct flow *f, double amount, int dir,
 				double new_speed = nf->speed[dir]-amount*delta/e;
 				if (dir == P_SND)
 					//The rcv speed can't increase by itself.
-					nf->speed[dir] -= new_speed;
+					nf->speed[dir] = new_speed;
 				else
 					log_info("dir == P_RCV, don't increase speed, notify the other end only.\n");
 				//queue speed increase event to the other end
