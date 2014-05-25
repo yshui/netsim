@@ -10,6 +10,7 @@
 #include "range.h"
 #include "event.h"
 #include "record.h"
+#include "record_wrapper.h"
 
 extern inline void
 queue_speed_event(struct flow *f, int dir,
@@ -96,7 +97,8 @@ double bwspread(struct flow *f, double amount, int dir,
 			//maximum bandwidth, every connection is at its upbound,
 			//and not limited by their share, so there's no need to
 			//spread.
-			f->peer[dir]->bandwidth_usage[dir] += amount;
+			n->bandwidth_usage[dir] += amount;
+			write_usage(dir, n, s);
 			return amount;
 		}
 		log_debug("total(%lf) <= max(%lf), but closing, and total+"
@@ -108,11 +110,13 @@ double bwspread(struct flow *f, double amount, int dir,
 		log_debug("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
 		//There're enough free bandwidth
 		n->bandwidth_usage[dir] += amount;
+		write_usage(dir, n, s);
 		return amount;
 	}
 	if (used < max) {
 		log_debug("used(%lf) < max(%lf)\n", used, max);
 		n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
+		write_usage(dir, n, s);
 	}
 
 	/* Gather/Spread the amount needed */
@@ -146,6 +150,7 @@ double bwspread(struct flow *f, double amount, int dir,
 		//there are still free speed left.
 		log_debug("amount(%lf) < 0, e < -amount, new amount: %lf\n", amount, -e);
 		n->bandwidth_usage[dir] += amount+e;
+		write_usage(dir, n, s);
 		amount = -e;
 	}
 	list_for_each_entry(nf, h, conns[dir]){
@@ -332,9 +337,9 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 
 
 	//Log bandwidth usage
-	struct node *n = f->peer[se->type];
-	write_record(0, R_USAGE|se->type, n->node_id, -1,
-		     &n->bandwidth_usage[se->type], s);
+	//struct node *n = f->peer[se->type];
+	//write_record(0, R_USAGE|se->type, n->node_id, -1,
+	//	     &n->bandwidth_usage[se->type], s);
 
 	//Log speed change
 	write_record(0, R_SPD|se->type, f->flow_id, -1, &se->speed, s);

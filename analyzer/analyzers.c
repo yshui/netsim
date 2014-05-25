@@ -56,6 +56,7 @@ struct speed_rec {
 
 struct node {
 	uint32_t id;
+	double ctime;
 	enum node_type type;
 	struct list_head srecs; //Speed change records
 	int nsrec;
@@ -94,6 +95,7 @@ struct speed_rec *node_tracker(struct node **nhash, struct record *r){
 			n->type = CLNT;
 			INIT_LIST_HEAD(&n->srecs);
 			n->id = r->id;
+			n->ctime = r->time;
 			HASH_ADD_INT(*nhash, id, n);
 			break;
 		case R_IN_USAGE:
@@ -165,7 +167,8 @@ void n1spd_finish(void *d){
 	struct speed_rec *sr;
 	printf("#Speed report for node %u, dir %d\n#Time\tSpeed\n",
 	       x->node_id, x->dir);
-	list_for_each_entry(sr, &n->srecs, srecs){
+	printf("%lf 0\n", n->ctime);
+	list_for_each_entry_reverse(sr, &n->srecs, srecs){
 		if (sr->dir != x->dir)
 			continue;
 		printf("%lf %lf\n", sr->time, sr->speed);
