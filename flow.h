@@ -31,8 +31,8 @@ void flow_throttle_handler(struct event *e, struct sim_state *s);
 
 static inline bool
 is_connected(struct node *src, struct node *dst){
-	struct node *tdst = NULL;
-	HASH_FIND(peersh, src->peers, &dst->node_id, sizeof(dst->node_id), tdst);
-	assert(!tdst || tdst == dst);
-	return tdst != NULL;
+	struct flow *tf = NULL;
+	HASH_FIND(hh2, src->outs, &dst->node_id, sizeof(dst->node_id), tf);
+	assert(!tf || tf->peer[1] == dst);
+	return tf != NULL;
 }

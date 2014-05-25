@@ -72,6 +72,8 @@ struct flow {
 	struct node *peer[2];
 	struct list_head conns[2];
 	struct list_head spd_evs;
+	UT_hash_handle hh2;
+	id_t dst_id;
 	//This is a directional flow
 	int start;
 	double begin_time;
@@ -99,10 +101,10 @@ struct node {
 	void *user_data; //Used for calculate bandwidth between nodes
 	struct store *store;
 	struct list_head conns[2]; //Nodes connected with this node
-	struct node *peers; //Hash table of outbound peers
+	struct flow *outs; //Hash table of outbound peers
 	//Return true if the node decide to accept this request
 	id_t node_id;
-	UT_hash_handle hh, peersh;
+	UT_hash_handle hh;
 	enum node_state state;
 };
 

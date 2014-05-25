@@ -14,7 +14,7 @@
 #include "sim.h"
 #include "flow.h"
 
-int global_log_level = LOG_INFO;
+int global_log_level = LOG_DEBUG;
 
 int main(int argc, const char **argv){
 	if (argc != 2){

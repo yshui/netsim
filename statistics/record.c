@@ -56,6 +56,7 @@ read_record(struct record_handle *rh){
 			ptr+=4;
 			break;
 		case -1:
+			r->type = DOUBLE;
 			r->a.d = ntohl(*(uint32_t *)ptr);
 			ptr+=4;
 			tmp16 = ntohs(*(uint16_t *)ptr);

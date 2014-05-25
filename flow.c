@@ -194,10 +194,24 @@ double bwspread(struct flow *f, double amount, int dir,
 	return spread_amount;
 }
 
+//For debug only
+static void _conn_fsck(struct node *src){
+	struct flow *tf;
+	list_for_each_entry_reverse(tf, &src->conns[0], conns[0]){
+		assert(tf->peer[0] == src);
+		struct node *dst = tf->peer[1];
+		struct flow *tdst = NULL;
+		HASH_FIND(hh2, src->outs, &dst->node_id, sizeof(dst->node_id), tdst);
+		assert(tf == tdst);
+	}
+}
+
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
 //dir = who initiate the close, 0 = the src, 1 = the dst
 //Close connection in both direction
 void flow_close(struct flow *f, struct sim_state *s){
+	_conn_fsck(f->peer[0]);
+	assert(is_connected(f->peer[0], f->peer[1]));
 	//Spread the bandwidth to remaining connections.
 	f->peer[0]->total_bwupbound[0] -= f->bwupbound;
 	f->peer[1]->total_bwupbound[1] -= f->bwupbound;
@@ -207,7 +221,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 	list_del(&f->conns[1]);
 	log_debug("Remove flow %d %p\n", f->flow_id, f);
 	HASH_DEL(s->flows, f);
-	HASH_DELETE(peersh, f->peer[0]->peers, f->peer[1]);
+	HASH_DELETE(hh2, f->peer[0]->outs, f);
 
 	//Remove the corresponding flow from consumer
 	struct list_head *h = &f->spd_evs;
@@ -241,22 +255,22 @@ void flow_close(struct flow *f, struct sim_state *s){
 //connection creation is always initiated by src
 struct flow *flow_create(struct node *src, struct node *dst,
 				     struct sim_state *s){
-	struct flow *f;
-	struct node *tdst = NULL;
+	_conn_fsck(src);
 	//Don't create multiple flow between same pair of nodes
-	HASH_FIND(peersh, src->peers, &dst->node_id, sizeof(dst->node_id), tdst);
-	assert(!tdst);
+	assert(!is_connected(src, dst));
+	struct flow *f;
 	f = talloc(1, struct flow);
 	f->bwupbound =
 		s->bwcalc(src->user_data, dst->user_data);
 	f->peer[0] = src;
 	f->peer[1] = dst;
 	f->speed[1] = 0;
+	f->dst_id = dst->node_id;
 	f->delay = s->dlycalc(src->user_data, dst->user_data);
 	INIT_LIST_HEAD(&f->spd_evs);
 	list_add(&f->conns[0], &src->conns[0]);
 	list_add(&f->conns[1], &dst->conns[1]);
-	HASH_ADD(peersh, src->peers, node_id, sizeof(dst->node_id), dst);
+	HASH_ADD(hh2, src->outs, dst_id, sizeof(f->dst_id), f);
 	src->total_bwupbound[0] += f->bwupbound;
 	dst->total_bwupbound[1] += f->bwupbound;
 
