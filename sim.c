@@ -6,6 +6,7 @@
 #include "sim.h"
 #include "flow.h"
 #include "range.h"
+#include "record.h"
 
 const double eps = 1e-6;
 
@@ -93,6 +94,8 @@ struct node *sim_create_node(struct sim_state *s){
 	}while(on);
 	HASH_ADD_INT(s->nodes, node_id, n);
 
+	uint8_t padding = 0;
+	write_record(0, R_NODE_CREATE, n->node_id, 1, &padding, s);
 	return n;
 }
 
@@ -124,3 +127,4 @@ struct resource *sim_node_add_resource(struct node *n, struct resource *r){
 	resource_new_range(nr, 0, nr->len);
 	return nr;
 }
+

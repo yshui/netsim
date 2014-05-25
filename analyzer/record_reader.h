@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "common.h"
 #define R_USAGE 0
 #define R_OUT_USAGE 0
 #define R_IN_USAGE 1
@@ -14,7 +15,6 @@
 #define R_NODE_STATE 7
 #define R_NODE_CREATE 8
 
-#define talloc(nmemb, type) (type *)calloc(nmemb, sizeof(type));
 struct record_handle {
 	int fd;
 	uint32_t len;

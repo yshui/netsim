@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "sim.h"
 #include "common.h"
+#include "record.h"
 
 struct def_user {
 	double bit_rate;
@@ -84,7 +85,8 @@ p2p_new_server(struct sim_state *s){
 	struct node *n = p2p_new_node(s);
 	struct def_sim *ds = s->user_data;
 	struct def_user *d = n->user_data;
-	d->next_state = n->state = N_SERVER;
+	sim_node_change_state(n, N_SERVER, s);
+	d->next_state = n->state;
 	struct server *ss = talloc(1, struct server);
 	ss->n = n;
 	list_add(&ss->servers, &ds->servers);

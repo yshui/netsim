@@ -23,14 +23,14 @@ void cloud_online(struct node *n, struct sim_state *s){
 	//cloud nodes don't go away,
 	//they just online/offline
 	struct def_user *d = n->user_data;
-	d->next_state = n->state = N_CLOUD;
-	write_record(0, R_NODE_STATE, n->node_id, sizeof(n->state), &n->state, s);
+	sim_node_change_state(n, N_CLOUD, s);
+	d->next_state = n->state;
 }
 
 void cloud_offline(struct node *n, struct sim_state *s){
 	//cloud nodes don't go away,
 	//they just online/offline
 	struct def_user *d = n->user_data;
+	sim_node_change_state(n, N_OFFLINE, s);
 	d->next_state = n->state = N_OFFLINE;
-	write_record(0, R_NODE_STATE, n->node_id, sizeof(n->state), &n->state, s);
 }

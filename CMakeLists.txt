@@ -12,7 +12,7 @@ add_executable(netsim
 target_link_libraries(netsim dl)
 
 add_subdirectory(modules)
-add_subdirectory(statistics)
+add_subdirectory(analyzer)
 
 add_executable(skiplist_test
 	skiplist_test.c

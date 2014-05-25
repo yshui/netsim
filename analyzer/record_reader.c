@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "record.h"
+#include "record_reader.h"
 struct record_handle *
 open_record(const char *filename){
 	struct record_handle *rh = talloc(1, struct record_handle);

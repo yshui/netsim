@@ -1,8 +1,8 @@
 #pragma once
-#include "record.h"
+#include "record_reader.h"
 extern struct analyzer {
 	const char *name;
-	void *(*init)(void);
+	void *(*init)(int, const char **);
 	void (*next_record)(void *, struct record *);
 	void (*finish)(void *);
 }analyzer_table[];

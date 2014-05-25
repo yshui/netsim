@@ -175,7 +175,7 @@ void client_handle_next_state(struct node *n, struct sim_state *s){
 	if (n->state == d->next_state)
 		return;
 	int o_state = n->state;
-	n->state = d->next_state;
+	sim_node_change_state(n, d->next_state, s);
 	switch(o_state){
 		case N_PLAYING:
 			d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
@@ -246,7 +246,8 @@ void client_start_play(struct node *client, id_t rid, struct sim_state *s){
 	d->last_update = s->now;
 	d->bit_rate = r->bit_rate;
 	d->resource = rid;
-	d->next_state = client->state = client_recalc_state(client);
+	sim_node_change_state(client, client_recalc_state(client), s);
+	d->next_state = client->state;
 
 	if (!rng) {
 		//Nothing downloaded yet

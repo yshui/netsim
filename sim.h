@@ -2,6 +2,7 @@
 
 #include "data.h"
 #include "log.h"
+#include "record.h"
 
 struct packet{
 	struct node *src, *dst;
@@ -19,6 +20,12 @@ void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 struct resource *
 sim_node_new_resource(struct node *n, size_t len);
 struct resource *sim_node_add_resource(struct node *n, struct resource *r);
+
+static inline void
+sim_node_change_state(struct node *n, enum node_state state, struct sim_state *s){
+	n->state = state;
+	write_record(0, R_NODE_STATE, n->node_id, 1, &n->state, s);
+}
 
 static inline
 void print_range(struct resource *r){
