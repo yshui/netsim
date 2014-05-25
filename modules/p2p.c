@@ -13,7 +13,7 @@ struct resource_model rrm[] = {
 };
 const int nrm = 3;
 const int ncloud = 1;
-const int nuser = 5;
+const int nuser = 1000;
 const int nsvr = 2;
 
 void p2p_user_event(struct event *e, struct sim_state *s){

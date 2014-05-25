@@ -34,7 +34,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 	uint8_t *r = s->record_tail;
 	assert(s->record_tail);
 
-	uint8_t *new_tail = ((uint8_t *)s->record_tail)+sizeof(*r)+6;
+	uint8_t *new_tail = ((uint8_t *)s->record_tail)+1+1+4+4+2+1+6;
 	if (s->record_file_size+s->record_head <= (void *)new_tail) {
 		size_t old_len = s->record_tail-s->record_head;
 		int ret = ftruncate(s->record_fd, s->record_file_size<<1);
