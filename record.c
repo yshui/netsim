@@ -14,7 +14,8 @@
 #include "log.h"
 #include "data.h"
 
-struct record_disk{
+//Note this struct is just used as a reference
+struct _record_ondisk_format{
 	uint8_t major;
 	uint8_t minor;
 	uint32_t id;
@@ -30,7 +31,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 		return;
 	}
 
-	struct record_disk *r = s->record_tail;
+	uint8_t *r = s->record_tail;
 	assert(s->record_tail);
 
 	uint8_t *new_tail = ((uint8_t *)s->record_tail)+sizeof(*r)+6;
@@ -49,15 +50,29 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 		}
 	}
 
-	r->major = major;
-	r->minor = minor;
-	r->id = htonl(id);
-	r->time = htonl((int)s->now);
+	//Major
+	*r = major;
+	r++;
+	//Minor
+	*r = minor;
+	r++;
+	//Id
+	*(uint32_t *)r = htonl(id);
+	r += 4;
+	//Decimal part of time
+	//Store time as uint32_t pose a limit on time
+	//Which is about 60 years, which won't be a problem
+	//for simulation propose.
+	*(uint32_t *)r = htonl((int)s->now);
+	r += 4;
 
 	uint16_t utime = (s->now-((int)s->now))*1000;
-	r->utime = htons(utime);
+	//Usecs
+	*(uint16_t *)r = htons(utime);
+	r += 2;
 
-	r->bytes = bytes;
+	*(int8_t *)r = bytes;
+	r++;
 
 	union {
 		uint8_t *u8p;
@@ -65,7 +80,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 		uint32_t *u32p;
 	}a;
 	double tmp;
-	a.u8p = s->record_tail+sizeof(*r);
+	a.u8p = r;
 
 	switch(bytes){
 		case 1:
@@ -95,11 +110,7 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 
 	uint32_t n = *(uint32_t *)s->record_head;
 	n = ntohl(n);
-	n += sizeof(*r);
-	if (bytes != -1)
-		n += bytes;
-	else
-		n += 6;
+	n += a.u8p-(uint8_t *)s->record_tail;
 
 	*(uint32_t *)s->record_head = htonl(n);
 	s->record_tail = a.u8p;
