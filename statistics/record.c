@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -15,15 +17,18 @@ open_record(const char *filename){
 		return NULL;
 	}
 	rh->head = mmap(NULL, 16, PROT_READ, MAP_PRIVATE, rh->fd, 0);
-	rh->tail = rh->head+sizeof(uint32_t);
 	rh->len = *(uint32_t *)rh->head;
 	rh->len = ntohl(rh->len);
+	rh->head = mremap(rh->head, 16, rh->len+4, MREMAP_MAYMOVE);
+	rh->tail = rh->head+4;
 
 	return rh;
 }
 
 struct record *
 read_record(struct record_handle *rh){
+	if (rh->tail >= rh->head+4+rh->len)
+		return NULL;
 	struct record *r = talloc(1, struct record);
 	uint8_t *ptr = rh->tail;
 	r->major = *ptr;

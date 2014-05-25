@@ -12,7 +12,7 @@ struct resource_model rrm[] = {
 	{0.5, 5, 0, 300, 10},
 };
 const int nrm = 3;
-const int ncloud = 16;
+const int ncloud = 1;
 const int nuser = 5;
 const int nsvr = 2;
 
