@@ -164,14 +164,19 @@ void n1spd_finish(void *d){
 	struct node *n = NULL;
 	HASH_FIND_INT(x->nh, &x->node_id, n);
 	assert(n);
-	struct speed_rec *sr;
+	struct speed_rec *sr, *psr = NULL;
 	printf("#Speed report for node %u, dir %d\n#Time\tSpeed\n",
 	       x->node_id, x->dir);
 	printf("%lf 0\n", n->ctime);
 	list_for_each_entry_reverse(sr, &n->srecs, srecs){
 		if (sr->dir != x->dir)
 			continue;
+		if (psr)
+			printf("%lf %lf\n", sr->time, psr->speed);
+		else
+			printf("%lf 0\n", sr->time);
 		printf("%lf %lf\n", sr->time, sr->speed);
+		psr = sr;
 	}
 }
 

@@ -12,9 +12,6 @@ struct resource_model rrm[] = {
 	{0.5, 5, 0, 300, 10},
 };
 const int nrm = 3;
-const int ncloud = 1;
-const int nuser = 1000;
-const int nsvr = 2;
 
 void p2p_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
@@ -43,8 +40,34 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 	}
 }
 
+struct p2p_data {
+	struct def_sim d;
+	int new_resource_handler;
+	int client_new_play;
+	int end_simulation;
+	int nsvr, ncld, nclnt;
+};
+
+void p2p_read_config(struct p2p_data *d){
+	FILE *cfg = fopen("p2p.cfg", "r");
+	fscanf(cfg, "%d", &d->d.max_rsrc);
+	fscanf(cfg, "%d", &d->new_resource_handler);
+	fscanf(cfg, "%d", &d->client_new_play);
+	//Always assume uniformed distribution of cloud, sever and client
+	//over timezones.
+	fscanf(cfg, "%d", &d->nsvr);
+	fscanf(cfg, "%d", &d->ncld);
+	fscanf(cfg, "%d", &d->nclnt);
+	fscanf(cfg, "%d", &d->end_simulation);
+	fclose(cfg);
+}
+
 int p2p_init(struct sim_state *s){
-	init_sim(s, 20);
+	init_sim_size(s, 20, sizeof(struct p2p_data));
+
+	struct p2p_data *pd;
+	pd = s->user_data;
+	p2p_read_config(pd);
 	unlink("p2p_record");
 	open_record("p2p_record", 1, s);
 	s->dlycalc = distance_based_delay;
@@ -59,28 +82,33 @@ int p2p_init(struct sim_state *s){
 		skip_list_insert(&ds->rms, &rrm[i].models, &rrm[i].prob, resource_model_cmp);
 	}
 
-	for(i = 0; i < nsvr; i++) {
+	for(i = 0; i < pd->nsvr; i++) {
 		struct node *n = p2p_new_server(s);
+		struct def_user *d = n->user_data;
 		n->maximum_bandwidth[0] = 160000;
 		n->maximum_bandwidth[1] = 320000;
+		d->time_zone = 24*i/pd->nsvr;
 	}
 
-	for(i = 0; i < ncloud; i++) {
+	for(i = 0; i < pd->ncld; i++) {
 		struct node *cn = p2p_new_cloud(s);
+		struct def_user *d = cn->user_data;
 		cloud_online(cn, s);
 		cn->maximum_bandwidth[0] = 80000;
 		cn->maximum_bandwidth[1] = 80000;
+		d->time_zone = 24*i/pd->ncld;
 	}
 	id_t rid = new_resource_random(s);
 	new_resource_handler1(rid, s);
 	next_resource_event(s);
 
-	for(i = 0; i < nuser; i++) {
+	for(i = 0; i < pd->nclnt; i++) {
 		struct node *n = p2p_new_node(s);
 		struct def_user *d = n->user_data;
 		n->state = N_IDLE;
 		n->maximum_bandwidth[0] = 40000;
 		n->maximum_bandwidth[1] = 8000;
+		d->time_zone = 24*i/pd->nclnt;
 		d->lowwm = 0;
 		d->highwm = 2500;
 		client_next_event(n, s);

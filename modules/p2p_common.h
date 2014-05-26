@@ -113,8 +113,9 @@ p2p_new_cloud(struct sim_state *s){
 }
 
 static inline void
-init_sim(struct sim_state *s, int max){
-	struct def_sim *ds = talloc(1, struct def_sim);
+init_sim_size(struct sim_state *s, int max, size_t size){
+	assert(size > sizeof(struct def_sim));
+	struct def_sim *ds = (struct def_sim *)calloc(1, size);
 	INIT_LIST_HEAD(&ds->servers);
 	INIT_LIST_HEAD(&ds->cloud_nodes);
 	INIT_LIST_HEAD(&ds->rsrc_probs);
@@ -123,6 +124,11 @@ init_sim(struct sim_state *s, int max){
 	s->user_data = ds;
 	ds->eval_size = 1;
 	ds->eval_table = talloc(1, struct nv_pair);
+}
+
+static inline void
+init_sim(struct sim_state *s, int max){
+	init_sim_size(s, max, sizeof(struct def_sim));
 }
 
 static inline double
