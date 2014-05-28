@@ -30,7 +30,7 @@ is_resource_usable(struct resource *r, size_t start, struct sim_state *s){
 	range_update(rng, s);
 	if (rng->start+rng->len <= start)
 		return false;
-	if (r->owner->state == N_OFFLINE)
+	if (r->owner->state == N_OFFLINE || r->owner->state == N_CLOUD_DYING)
 		return false;
 	return true;
 }

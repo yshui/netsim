@@ -38,6 +38,8 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 			list_for_each_entry(d, &ds->nodes, nodes){
 				if (d->n->state == N_SERVER || d->n->state == N_CLOUD)
 					continue;
+				if (d->n->state == N_OFFLINE || d->n->state == N_CLOUD_DYING)
+					continue;
 				struct resource *r = store_get(d->n->store, rid);
 				if (r)
 					continue;
@@ -119,7 +121,17 @@ void new_connection_handler2(struct node *cld, id_t rid, struct sim_state *s){
 	new_connection_handler(cld, rid, true, s);
 }
 
-void cloud_flow_done(struct node *cld, id_t rid, struct sim_state *s){
+void cloud_flow_done(struct node *cld, struct node *dst, id_t rid,
+		     struct sim_state *s){
+	struct def_user *d = cld->user_data;
+	if (dst->state == N_CLOUD)
+		d->cloud_push_dst--;
+	if (cld->bandwidth_usage[0] < 0.2*cld->maximum_bandwidth[0]) {
+		if (list_empty(&cld->conns[0]) && list_empty(&cld->conns[1]))
+			sim_node_change_state(cld, N_OFFLINE, s);
+		else
+			sim_node_change_state(cld, N_CLOUD_DYING, s);
+	}
 }
 
 void cloud_online(struct node *n, struct sim_state *s){

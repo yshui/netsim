@@ -92,6 +92,7 @@ enum node_state {
 	N_IDLE,
 	N_SERVER,
 	N_CLOUD,
+	N_CLOUD_DYING, //Meaning the cloud node won't accept new connections
 };
 
 struct node {

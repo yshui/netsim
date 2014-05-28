@@ -186,6 +186,7 @@ void client_handle_next_state(struct node *n, struct sim_state *s){
 		case N_STALE:
 			//Not playing, buffer_pos unchanged
 			d->last_update = s->now;
+			assert(d->next_state != N_DONE);
 			if (d->next_state == N_PLAYING)
 				client_lowwm_event(rng, s);
 			break;
@@ -196,6 +197,10 @@ void client_handle_next_state(struct node *n, struct sim_state *s){
 
 int client_new_connection(id_t rid, size_t start, struct node *server,
 			   struct node *client, struct sim_state *s){
+	assert(server->state != N_CLOUD_DYING);
+	assert(client->state != N_CLOUD_DYING);
+	assert(server->state != N_OFFLINE);
+	assert(client->state != N_OFFLINE);
 	struct flow *f = sim_establish_flow(rid, start, server, client, s);
 
 	if (!f)
