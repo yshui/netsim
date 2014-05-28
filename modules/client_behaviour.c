@@ -351,9 +351,8 @@ server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s)
 	return NULL;
 }
 
-void client_new_play1(struct node *n, struct sim_state *s){
+void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 	//Pick up a resource
-	id_t rid = resource_picker(s);
 	struct resource *ur = store_get(n->store, rid);
 	if (ur) {
 		//The resource is either downloaded,
@@ -373,4 +372,7 @@ void client_new_play1(struct node *n, struct sim_state *s){
 	for(i = 0; i < cnt; i++)
 		client_new_connection(rid, i*strip, ds->eval_table[i].n, n, s);
 	client_start_play(n, rid, s);
+}
+
+void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 }

@@ -18,7 +18,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s);
 void client_highwm_event(struct range *rng, struct sim_state *s);
 void client_speed_throttle(struct event *e, struct sim_state *s);
 void client_next_event(struct node *n, struct sim_state *s);
-void client_new_play1(struct node *n, struct sim_state *s);
+void client_new_play1(id_t, struct node *n, struct sim_state *s);
 struct node *
 server_picker1(struct node *client, struct sim_state *s);
 struct node *
@@ -94,4 +94,20 @@ server_picker_opt2(id_t rid, size_t start, struct node *client, eval_func opt,
 			}
 		}
 	return res;
+}
+
+static inline double
+get_break_by_hour(int hour){
+	if (hour > 12 && hour < 20)
+		return 1200;
+	else
+		return 3600;
+}
+
+static inline bool
+is_busy_hour(int hour){
+	if (hour > 12 && hour < 20)
+		return true;
+	else
+		return false;
 }

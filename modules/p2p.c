@@ -19,7 +19,8 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 	id_t rid;
 	switch(ue->type) {
 		case NEW_CONNECTION:
-			client_new_play1(ue->data, s);
+			rid = resource_picker(s);
+			client_new_play1(rid, ue->data, s);
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
@@ -87,7 +88,7 @@ int p2p_init(struct sim_state *s){
 		struct def_user *d = n->user_data;
 		n->maximum_bandwidth[0] = 160000;
 		n->maximum_bandwidth[1] = 320000;
-		d->time_zone = 24*i/pd->nsvr;
+		d->time_zone = 24*i/pd->d.nsvr;
 	}
 
 	for(i = 0; i < pd->ncld; i++) {
@@ -96,7 +97,7 @@ int p2p_init(struct sim_state *s){
 		cloud_online(cn, s);
 		cn->maximum_bandwidth[0] = 80000;
 		cn->maximum_bandwidth[1] = 80000;
-		d->time_zone = 24*i/pd->ncld;
+		d->time_zone = 24*i/pd->d.ncld;
 	}
 	id_t rid = new_resource_random(s);
 	new_resource_handler1(rid, s);

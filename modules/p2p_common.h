@@ -17,9 +17,12 @@ struct def_user {
 	struct node *n;
 	struct event *e;
 	struct resource_provider *p;
+	struct list_head nodes;
+	struct list_head time_zones[24];
 	int time_zone;
 	//0 = always online, 1 = not so
 	int type;
+	int cloud_push_dst;
 };
 
 struct server {
@@ -38,6 +41,7 @@ enum ue_type {
 	DONE_BUFFERING,
 	NEW_CONNECTION,
 	NEW_RESOURCE,
+	HOUR_PASS,
 	SIM_END,
 };
 
@@ -60,11 +64,13 @@ struct def_sim {
 	//Servers are immutable
 	struct list_head servers;
 	struct list_head cloud_nodes;
+	struct list_head nodes;
+	struct list_head time_zones[24];
 	struct skip_list_head rms;
 	struct resource_entry *rsrcs;
 	//resource number limit
 	int max_rsrc, nrsrc;
-	int nsvr;
+	int nsvr, ncld, ncld_on, nnd;
 	int start_hour;//Start hour in UTC+0
 	struct nv_pair *eval_table;
 	int eval_size;
@@ -75,8 +81,17 @@ static inline struct node *
 p2p_new_node(struct sim_state *s){
 	struct node *n = sim_create_node(s);
 	struct def_user *d;
+	struct def_sim *ds = s->user_data;
 	n->user_data = d = (struct def_user *)talloc(1, struct def_user);
 	d->n = n;
+	list_add(&d->nodes, &ds->nodes);
+
+	ds->nnd++;
+	if (ds->nnd > ds->eval_size) {
+		ds->eval_size <<= 1;
+		ds->eval_table = realloc(ds->eval_table,
+					 ds->eval_size*sizeof(struct nv_pair));
+	}
 	return n;
 }
 
@@ -92,11 +107,6 @@ p2p_new_server(struct sim_state *s){
 	list_add(&ss->servers, &ds->servers);
 
 	ds->nsvr++;
-	if (ds->nsvr > ds->eval_size) {
-		ds->eval_size <<= 1;
-		ds->eval_table = realloc(ds->eval_table,
-					 ds->eval_size*sizeof(struct nv_pair));
-	}
 	return n;
 }
 
@@ -109,17 +119,36 @@ p2p_new_cloud(struct sim_state *s){
 	cn->n = n;
 	list_add(&cn->cloud_nodes, &ds->cloud_nodes);
 
+	ds->ncld++;
 	return n;
+}
+
+static inline void
+assign_timezone(struct node *n, int time_zone, struct sim_state *s){
+	struct def_user *d = n->user_data;
+	struct def_sim *ds = s->user_data;
+	int t = d->time_zone;
+	if (d->time_zones[t].prev && d->time_zones[t].next)
+		list_del(&d->time_zones[t]);
+	d->time_zone = time_zone;
+	list_add(&d->time_zones[time_zone], &ds->time_zones[time_zone]);
 }
 
 static inline void
 init_sim_size(struct sim_state *s, int max, size_t size){
 	assert(size > sizeof(struct def_sim));
+
+	int i;
 	struct def_sim *ds = (struct def_sim *)calloc(1, size);
 	INIT_LIST_HEAD(&ds->servers);
 	INIT_LIST_HEAD(&ds->cloud_nodes);
 	INIT_LIST_HEAD(&ds->rsrc_probs);
+	INIT_LIST_HEAD(&ds->nodes);
+	for (i = 0; i < 24; i++)
+		INIT_LIST_HEAD(&ds->time_zones[i]);
+
 	skip_list_init_head(&ds->rms);
+
 	ds->max_rsrc = max;
 	s->user_data = ds;
 	ds->eval_size = 1;
@@ -129,14 +158,6 @@ init_sim_size(struct sim_state *s, int max, size_t size){
 static inline void
 init_sim(struct sim_state *s, int max){
 	init_sim_size(s, max, sizeof(struct def_sim));
-}
-
-static inline double
-get_break_by_hour(int hour){
-	if (hour > 12 && hour < 20)
-		return 1200;
-	else
-		return 3600;
 }
 
 static inline int distance_metric(struct node *n, void *data){
@@ -165,5 +186,10 @@ static inline double distance_based_delay(void *_a, void *_b){
 	if (d < 0)
 		d = -d;
 	return 0.02*d;
+}
 
+static inline int get_hour(struct node *n, struct sim_state *s){
+	int h = s->now/3600.0;
+	struct def_user *d = n->user_data;
+	return (h+d->time_zone)%24;
 }

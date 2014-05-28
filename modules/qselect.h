@@ -5,7 +5,7 @@
 #define def_qselect(name, type) \
 static inline type * \
 qselect_##name(type *v, size_t nmemb, size_t k) { \
-	assert(nmemb > k); \
+	assert(nmemb > k-1); \
 	static type tmp; \
 	int i, st; \
 \
@@ -21,7 +21,7 @@ qselect_##name(type *v, size_t nmemb, size_t k) { \
 	v[st] = v[nmemb-1]; \
 	v[nmemb-1] = tmp; \
 \
-	return k == st ? v+st : \
-			 st > k ? qselect_##name(v, st, k) : \
+	return k-1 == st ? v+st : \
+			 st > k-1 ? qselect_##name(v, st, k) : \
 				  qselect_##name(v+st, nmemb-st, k-st); \
 }
