@@ -35,7 +35,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 	double fbw = f->speed[1];
 	//The flow always appends to a range
 	int drng_start = f->drng->start+f->drng->len-srng->start;
-	assert(srng->len >= drng_start);
+	assert(srng->len > drng_start-eps);
 	double drain_time = (srng->len-drng_start)/(fbw-sgrow);
 
 	if (!srng->producer) {
@@ -85,7 +85,8 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	rng->len = nrng->start-rng->start+nrng->len;
 
 	rng->producer = nrng->producer;
-	rng->producer->drng = rng;
+	if (rng->producer)
+		rng->producer->drng = rng;
 
 	while(!list_empty(&nrng->consumers)){
 		struct list_head *h = nrng->consumers.next;

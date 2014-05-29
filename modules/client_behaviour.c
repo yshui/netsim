@@ -397,7 +397,8 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 	client_new_connection(rid, 0, cand, n, s);
 	int depth = 0;
 	int strip = r->len;
-	while(1){
+	bool stop = false;
+	while(!stop){
 		if (n->total_bwupbound[1] > n->maximum_bandwidth[1])
 			break;
 		if (depth > 7)
@@ -408,6 +409,10 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 		for (i = 0; i < (1<<depth); i++) {
 			int idx = (i<<1)+1;
 			cand = server_picker_opt2(rid, strip*idx, n, ds->fetch_metric, n, s);
+			if (!cand) {
+				stop = true;
+				break;
+			}
 			client_new_connection(rid, strip*idx, cand, n, s);
 		}
 		depth++;

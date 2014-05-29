@@ -57,8 +57,11 @@ static inline void event_add(struct event *e, struct sim_state *s){
 	if (!e || e->active)
 		return;
 	if (e->time < s->now) {
-		log_err("Add event back in time\n");
-		abort();
+		if (e->time < s->now-eps) {
+			log_err("Add event back in time\n");
+			abort();
+		}
+		e->time = s->now;
 	}
 	if (isnan(e->time)) {
 		log_err("Add event at nan\n");

@@ -215,9 +215,9 @@ static bool _conn_fsck(struct node *src){
 		cnt += tf->speed[0];
 		tbw += tf->bwupbound;
 	}
-	assert(tbw == src->total_bwupbound[0]);
-	assert(cnt == src->bandwidth_usage[0]);
-	return cnt == src->bandwidth_usage[0];
+	assert(fequ(tbw, src->total_bwupbound[0]));
+	assert(fequ(cnt, src->bandwidth_usage[0]));
+	return fequ(cnt, src->bandwidth_usage[0]);
 }
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
