@@ -107,17 +107,18 @@ double bwspread(struct flow *f, double amount, int dir,
 			 max, total+f->bwupbound);
 	}
 
-	if (amount > -eps && used+amount < max+eps) {
-		log_debug("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
-		//There're enough free bandwidth
-		n->bandwidth_usage[dir] += amount;
-		write_usage(dir, n, s);
-		return amount;
-	}
-	if (used < max) {
-		log_debug("used(%lf) < max(%lf)\n", used, max);
-		n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
-		write_usage(dir, n, s);
+	if (amount > -eps) {
+		if (used+amount < max+eps) {
+			log_debug("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
+			//There're enough free bandwidth
+			n->bandwidth_usage[dir] += amount;
+			write_usage(dir, n, s);
+			return amount;
+		} else  {
+			log_debug("used(%lf) < max(%lf)\n", used, max);
+			n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
+			write_usage(dir, n, s);
+		}
 	}
 
 	/* Gather/Spread the amount needed */
@@ -360,6 +361,7 @@ void speed_change_free(struct event *e, struct sim_state *s){
 
 void flow_done_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
+	assert(_conn_fsck(f->peer[0]));
 	range_update(f->drng, s);
 	struct skip_list_head *next = f->drng->ranges.next[0];
 	if (next) {
