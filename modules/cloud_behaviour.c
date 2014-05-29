@@ -12,7 +12,7 @@ void new_resource_handler1(id_t rid, bool delay, struct sim_state *s){
 		if (delay && !is_busy_hour(get_hour(cn->n, s)))
 			continue;
 		int cnt = ds->nsvr/2, i;
-		server_picker_opt1(cn->n, distance_metric, &cnt, cn->n, s);
+		server_picker_opt1(cn->n, ds->fetch_metric, &cnt, cn->n, s);
 		assert(cnt);
 		struct resource *r = store_get(ds->eval_table[0].n->store, rid);
 		int split = r->len/cnt;
@@ -44,7 +44,7 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 				if (r)
 					continue;
 				ds->eval_table[c].n = d->n;
-				ds->eval_table[c++].val = distance_metric(d->n, src);
+				ds->eval_table[c++].val = ds->push_metric(d->n, src);
 			}
 			qsort(ds->eval_table, c, sizeof(struct nv_pair), _nv_cmp);
 			int i;
@@ -66,7 +66,7 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 			cloud_online(cn->n, s);
 		}
 		ds->eval_table[c].n = cn->n;
-		ds->eval_table[c++].val = distance_metric(cn->n, src);
+		ds->eval_table[c++].val = ds->push_metric(cn->n, src);
 	}
 	if (c > ds->ncld/8) {
 		qselect_eval(ds->eval_table, c, ds->ncld/8);
@@ -113,6 +113,36 @@ static inline void new_connection_handler(struct node *cld, id_t rid,
 	cloud_push1(rid, cld, s, client);
 }
 
+void cloud_next_hour_handler(struct sim_state *s){
+	struct cloud_node *cn;
+	struct def_sim *ds;
+	list_for_each_entry_reverse(cn, &ds->cloud_nodes, cloud_nodes){
+		if (is_busy_hour(get_hour(cn->n, s)))
+			continue;
+		//Look ahead 3 hour
+		if (!is_busy_hour(get_hour(cn->n, s)+3))
+			continue;
+		if (cn->n->state != N_CLOUD)
+			cloud_online(cn->n, s);
+		struct resource_entry *re;
+		list_for_each_entry(re, &ds->rsrc_probs, probs){
+			if (cn->n->total_bwupbound[1] > cn->n->maximum_bandwidth[1])
+				break;
+			struct server *sn;
+			bool flag;
+			list_for_each_entry(sn, &ds->servers, servers){
+				if (sn->n->bandwidth_usage[0] < 0.8*sn->n->bandwidth_usage[0]) {
+					flag = true;
+					break;
+				}
+			}
+			if (!flag)
+				return;
+			client_new_connection(re->resource_id, 0, sn->n, cn->n, s);
+		}
+	}
+}
+
 void new_connection_handler1(struct node *cld, id_t rid, struct sim_state *s){
 	new_connection_handler(cld, rid, false, s);
 }
@@ -139,8 +169,10 @@ void cloud_online(struct node *n, struct sim_state *s){
 	//they just online/offline
 	struct def_user *d = n->user_data;
 	struct def_sim *ds = s->user_data;
-	assert(n->state == N_CLOUD || n->state == N_OFFLINE);
-	if (n->state != N_OFFLINE)
+	assert(n->state == N_CLOUD_DYING ||
+	       n->state == N_CLOUD ||
+	       n->state == N_OFFLINE);
+	if (n->state != N_OFFLINE && n->state != N_CLOUD_DYING)
 		return;
 	sim_node_change_state(n, N_CLOUD, s);
 	d->next_state = n->state;
@@ -152,10 +184,24 @@ void cloud_offline(struct node *n, struct sim_state *s){
 	//they just online/offline
 	struct def_user *d = n->user_data;
 	struct def_sim *ds = s->user_data;
-	assert(n->state == N_CLOUD || n->state == N_OFFLINE);
-	if (n->state != N_CLOUD)
+	assert(n->state == N_CLOUD_DYING ||
+	       n->state == N_CLOUD ||
+	       n->state == N_OFFLINE);
+	if (n->state != N_CLOUD_DYING)
 		return;
 	sim_node_change_state(n, N_OFFLINE, s);
 	d->next_state = n->state = N_OFFLINE;
+}
+
+void cloud_kill(struct node *n, struct sim_state *s){
+	struct def_user *d = n->user_data;
+	struct def_sim *ds = s->user_data;
+	assert(n->state == N_CLOUD_DYING ||
+	       n->state == N_CLOUD ||
+	       n->state == N_OFFLINE);
+	if (n->state != N_CLOUD)
+		return;
+	sim_node_change_state(n, N_CLOUD_DYING, s);
+	d->next_state = n->state = N_CLOUD_DYING;
 	ds->ncld_on--;
 }

@@ -200,22 +200,26 @@ double bwspread(struct flow *f, double amount, int dir,
 }
 
 //For debug only
-static void _conn_fsck(struct node *src){
+static bool _conn_fsck(struct node *src){
 	struct flow *tf;
+	double cnt = 0;
 	list_for_each_entry_reverse(tf, &src->conns[0], conns[0]){
 		assert(tf->peer[0] == src);
 		struct node *dst = tf->peer[1];
 		struct flow *tdst = NULL;
 		HASH_FIND(hh2, src->outs, &dst->node_id, sizeof(dst->node_id), tdst);
 		assert(tf == tdst);
+		cnt += tf->speed[0];
 	}
+	assert(cnt == src->bandwidth_usage[0]);
+	return cnt == src->bandwidth_usage[0];
 }
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
 //dir = who initiate the close, 0 = the src, 1 = the dst
 //Close connection in both direction
 void flow_close(struct flow *f, struct sim_state *s){
-	_conn_fsck(f->peer[0]);
+	assert(_conn_fsck(f->peer[0]));
 	assert(is_connected(f->peer[0], f->peer[1]));
 	//Spread the bandwidth to remaining connections.
 	f->peer[0]->total_bwupbound[0] -= f->bwupbound;

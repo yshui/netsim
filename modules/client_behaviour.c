@@ -368,7 +368,7 @@ void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
 	int cnt = ds->nsvr/2;
 	//Pick up a server
-	server_picker_opt1(n, distance_metric, &cnt, n, s);
+	server_picker_opt1(n, ds->metric, &cnt, n, s);
 	assert(cnt);
 	struct node *n1 = ds->eval_table[0].n;
 	struct resource *r = store_get(n1->store, rid);
@@ -380,4 +380,32 @@ void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 }
 
 void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
+	//Keep make new connection until usage > 0.9
+	struct resource *ur = store_get(n->store, rid);
+	if (ur) {
+		client_start_play(n, rid, s);
+		return;
+	}
+	struct def_sim *ds = s->user_data;
+	struct node *cand = server_picker_opt2(rid, 0, n, ds->metric, n, s);
+	struct resource *r = store_get(cand->store, rid);
+	client_new_connection(rid, 0, cand, n, s);
+	int depth = 0;
+	int strip = r->len;
+	while(1){
+		if (n->total_bwupbound[1] > n->maximum_bandwidth[1])
+			break;
+		if (depth > 7)
+			//100 connections is too much
+			break;
+		strip >>= 1;
+		int i;
+		for (i = 0; i < (1<<depth); i++) {
+			int idx = (i<<1)+1;
+			cand = server_picker_opt2(rid, strip*idx, n, ds->metric, n, s);
+			client_new_connection(rid, strip*idx, cand, n, s);
+		}
+		depth++;
+	}
+	client_start_play(n, rid, s);
 }

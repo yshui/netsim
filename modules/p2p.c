@@ -24,7 +24,7 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
-			new_resource_handler1(rid, s);
+			new_resource_handler1(rid, false, s);
 			next_resource_event(s);
 			break;
 		case SIM_END:
@@ -77,6 +77,7 @@ int p2p_init(struct sim_state *s){
 	struct def_sim *ds = s->user_data;
 	ds->tvar = 20;
 	ds->tm = 1800;
+	ds->push_metric = ds->fetch_metric = distance_metric;
 	int i;
 	for(i = 1; i < nrm; i++) {
 		rrm[i].prob += rrm[i-1].prob;
@@ -100,7 +101,7 @@ int p2p_init(struct sim_state *s){
 		d->time_zone = 24*i/pd->d.ncld;
 	}
 	id_t rid = new_resource_random(s);
-	new_resource_handler1(rid, s);
+	new_resource_handler1(rid, false, s);
 	next_resource_event(s);
 
 	for(i = 0; i < pd->nclnt; i++) {

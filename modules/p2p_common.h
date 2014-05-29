@@ -75,6 +75,8 @@ struct def_sim {
 	struct nv_pair *eval_table;
 	int eval_size;
 	double tvar, tm;
+	int (*fetch_metric)(struct node *, void *);
+	int (*push_metric)(struct node *, void *);
 };
 
 static inline struct node *
