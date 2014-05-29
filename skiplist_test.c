@@ -15,7 +15,8 @@ int cmp(struct skip_list_head *a, void *key){
 	struct x *xx = skip_list_entry(a, struct x, h);
 	return xx->key - k;
 }
-#define NK (random()%1000)
+//#define NK (random()%1000)
+#define NK 100
 int main(){
 	int count=200000, i;
 	struct skip_list_head head;

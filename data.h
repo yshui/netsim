@@ -92,7 +92,7 @@ enum node_state {
 	N_IDLE,
 	N_SERVER,
 	N_CLOUD,
-	N_CLOUD_DYING, //Meaning the cloud node won't accept new connections
+	N_DYING, //Meaning the cloud node won't accept new connections
 };
 
 struct node {
@@ -142,6 +142,10 @@ struct event {
 	void *data;
 	//struct sim_state *s;
 	struct skip_list_head events;
+	bool auto_free;
+#ifndef NDEBUG
+	bool _fsck;
+#endif
 };
 
 #define SND 0
@@ -185,6 +189,7 @@ struct event *event_new(double time, enum event_type t, void *d){
 	e->type = t;
 	e->data = d;
 	e->active = false;
+	e->auto_free = false;
 	//e->s = NULL;
 	return e;
 }

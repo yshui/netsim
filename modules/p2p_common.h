@@ -77,6 +77,7 @@ struct def_sim {
 	double tvar, tm;
 	int (*fetch_metric)(struct node *, void *);
 	int (*push_metric)(struct node *, void *);
+	void (*new_conn_cb)(struct node *, id_t, struct sim_state *);
 };
 
 static inline struct node *

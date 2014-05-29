@@ -38,7 +38,7 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 			list_for_each_entry(d, &ds->nodes, nodes){
 				if (d->n->state == N_SERVER || d->n->state == N_CLOUD)
 					continue;
-				if (d->n->state == N_OFFLINE || d->n->state == N_CLOUD_DYING)
+				if (d->n->state == N_OFFLINE || d->n->state == N_DYING)
 					continue;
 				struct resource *r = store_get(d->n->store, rid);
 				if (r)
@@ -151,17 +151,29 @@ void new_connection_handler2(struct node *cld, id_t rid, struct sim_state *s){
 	new_connection_handler(cld, rid, true, s);
 }
 
+void cloud_kill(struct node *n, struct sim_state *s){
+	struct def_user *d = n->user_data;
+	struct def_sim *ds = s->user_data;
+	assert(n->state == N_DYING ||
+	       n->state == N_CLOUD ||
+	       n->state == N_OFFLINE);
+	if (n->state != N_CLOUD)
+		return;
+	if (list_empty(&n->conns[0]) && list_empty(&n->conns[1]))
+		sim_node_change_state(n, N_OFFLINE, s);
+	else
+		sim_node_change_state(n, N_DYING, s);
+	d->next_state = n->state;
+	ds->ncld_on--;
+}
+
 void cloud_flow_done(struct node *cld, struct node *dst, id_t rid,
 		     struct sim_state *s){
 	struct def_user *d = cld->user_data;
 	if (dst->state == N_CLOUD)
 		d->cloud_push_dst--;
-	if (cld->bandwidth_usage[0] < 0.2*cld->maximum_bandwidth[0]) {
-		if (list_empty(&cld->conns[0]) && list_empty(&cld->conns[1]))
-			sim_node_change_state(cld, N_OFFLINE, s);
-		else
-			sim_node_change_state(cld, N_CLOUD_DYING, s);
-	}
+	if (cld->bandwidth_usage[0] < 0.2*cld->maximum_bandwidth[0])
+		cloud_kill(cld, s);
 }
 
 void cloud_online(struct node *n, struct sim_state *s){
@@ -169,10 +181,10 @@ void cloud_online(struct node *n, struct sim_state *s){
 	//they just online/offline
 	struct def_user *d = n->user_data;
 	struct def_sim *ds = s->user_data;
-	assert(n->state == N_CLOUD_DYING ||
+	assert(n->state == N_DYING ||
 	       n->state == N_CLOUD ||
 	       n->state == N_OFFLINE);
-	if (n->state != N_OFFLINE && n->state != N_CLOUD_DYING)
+	if (n->state != N_OFFLINE && n->state != N_DYING)
 		return;
 	sim_node_change_state(n, N_CLOUD, s);
 	d->next_state = n->state;
@@ -184,24 +196,11 @@ void cloud_offline(struct node *n, struct sim_state *s){
 	//they just online/offline
 	struct def_user *d = n->user_data;
 	struct def_sim *ds = s->user_data;
-	assert(n->state == N_CLOUD_DYING ||
+	assert(n->state == N_DYING ||
 	       n->state == N_CLOUD ||
 	       n->state == N_OFFLINE);
-	if (n->state != N_CLOUD_DYING)
+	if (n->state != N_DYING)
 		return;
 	sim_node_change_state(n, N_OFFLINE, s);
 	d->next_state = n->state = N_OFFLINE;
-}
-
-void cloud_kill(struct node *n, struct sim_state *s){
-	struct def_user *d = n->user_data;
-	struct def_sim *ds = s->user_data;
-	assert(n->state == N_CLOUD_DYING ||
-	       n->state == N_CLOUD ||
-	       n->state == N_OFFLINE);
-	if (n->state != N_CLOUD)
-		return;
-	sim_node_change_state(n, N_CLOUD_DYING, s);
-	d->next_state = n->state = N_CLOUD_DYING;
-	ds->ncld_on--;
 }

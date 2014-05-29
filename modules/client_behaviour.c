@@ -197,16 +197,21 @@ void client_handle_next_state(struct node *n, struct sim_state *s){
 
 int client_new_connection(id_t rid, size_t start, struct node *server,
 			   struct node *client, struct sim_state *s){
-	assert(server->state != N_CLOUD_DYING);
-	assert(client->state != N_CLOUD_DYING);
+	assert(server->state != N_DYING);
+	assert(client->state != N_DYING);
 	assert(server->state != N_OFFLINE);
 	assert(client->state != N_OFFLINE);
 	struct flow *f = sim_establish_flow(rid, start, server, client, s);
+	struct def_sim *ds = s->user_data;
 
 	if (!f)
 		return -1;
 
+	//Add resource to holders
 	resource_add_provider(f->resource_id, client, s);
+	//New connection callback
+	if (ds->new_conn_cb)
+		ds->new_conn_cb(server, rid, s);
 	if (client->state != N_PLAYING && client->state != N_STALE)
 		//state == N_DONE, N_IDLE, N_OFFLINE
 		return 0;
@@ -217,7 +222,6 @@ int client_new_connection(id_t rid, size_t start, struct node *server,
 	client_lowwm_event(prng, s);
 	client_highwm_event(prng, s);
 
-	//Add resource to holders
 	return 0;
 }
 
@@ -322,6 +326,7 @@ void client_next_event(struct node *n, struct sim_state *s){
 	ue->type = NEW_CONNECTION;
 	ue->data = n;
 	struct event *e = event_new(s->now+time, USER, ue);
+	e->auto_free = true;
 	event_add(e, s);
 }
 

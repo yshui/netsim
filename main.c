@@ -52,6 +52,7 @@ int main(int argc, const char **argv){
 			break;
 		struct event *e = event_pop(s);
 		enum event_type et = e->type;
+		bool af = e->auto_free;
 		if (s->now > e->time) {
 			log_err("Time travaling! %lf -> %lf\n", s->now, e->time);
 			abort();
@@ -61,6 +62,8 @@ int main(int argc, const char **argv){
 		struct event_handler *eh;
 		list_for_each_entry(eh, &s->handlers[et], handlers)
 			eh->f(e, s);
+		if (af)
+			free(e);
 	}
 	return 0;
 }

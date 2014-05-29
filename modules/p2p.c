@@ -11,6 +11,17 @@ struct resource_model rrm[] = {
 	{0.3, 60, 20, 300, 10},
 	{0.5, 5, 0, 300, 10},
 };
+
+struct p2p_data {
+	struct def_sim d;
+	int new_resource_handler;
+	int client_new_play;
+	int new_connection_handler;
+	int smart_cloud;
+	int end_simulation;
+	int nsvr, ncld, nclnt;
+};
+
 const int nrm = 3;
 
 static void (*client_play_func)(id_t, struct node *, struct sim_state *);
@@ -20,6 +31,7 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 	struct user_event *ue = e->data;
 	struct user_event *need_free = ue;
 	struct def_user *d = ue->d;
+	struct p2p_data *ds = s->user_data;
 	id_t rid;
 	switch(ue->type) {
 		case NEW_CONNECTION:
@@ -28,7 +40,7 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
-			cloud_new_rsrc_func(rid, false, s);
+			cloud_new_rsrc_func(rid, ds->new_resource_handler , s);
 			next_resource_event(s);
 			break;
 		case SIM_END:
@@ -42,6 +54,7 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 			event_add(e, s);
 			break;
 		default:
+			need_free = NULL;
 			client_next_state_from_event(e, s);
 			log_info("[%.06lf] Client %d %s -> %s, rid %d\n", s->now, d->n->node_id,
 				 strstate(d->n->state), strstate(d->next_state), d->resource);
@@ -52,39 +65,47 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 	free(need_free);
 }
 
-struct p2p_data {
-	struct def_sim d;
-	int new_resource_handler;
-	int client_new_play;
-	int cloud_done;
-	int end_simulation;
-	int nsvr, ncld, nclnt;
-};
+#define SKIPd "%*[^0-9]%d"
 
 void p2p_read_config(struct p2p_data *d){
 	FILE *cfg = fopen("p2p.cfg", "r");
-	fscanf(cfg, "%d", &d->d.max_rsrc);
-	fscanf(cfg, "%d", &d->new_resource_handler);
-	fscanf(cfg, "%d", &d->client_new_play);
-	fscanf(cfg, "%d", &d->cloud_done);
+	fscanf(cfg, SKIPd, &d->d.max_rsrc);
+	fscanf(cfg, SKIPd, &d->new_resource_handler);
+	fscanf(cfg, SKIPd, &d->client_new_play);
+	fscanf(cfg, SKIPd, &d->smart_cloud);
+	fscanf(cfg, SKIPd, &d->new_connection_handler);
 	//Always assume uniformed distribution of cloud, sever and client
 	//over timezones.
-	fscanf(cfg, "%d", &d->nsvr);
-	fscanf(cfg, "%d", &d->ncld);
-	fscanf(cfg, "%d", &d->nclnt);
-	fscanf(cfg, "%d", &d->end_simulation);
+	fscanf(cfg, SKIPd, &d->nsvr);
+	fscanf(cfg, SKIPd, &d->ncld);
+	fscanf(cfg, SKIPd, &d->nclnt);
+	fscanf(cfg, SKIPd, &d->end_simulation);
 	fclose(cfg);
 
 	d->d.push_metric = d->d.fetch_metric = distance_metric;
-	client_play_func = client_new_play1;
+	client_play_func = d->client_new_play ? client_new_play2 : client_new_play1;
 	cloud_new_rsrc_func = new_resource_handler1;
+
+	switch(d->new_resource_handler) {
+		case 0:
+			d->d.new_conn_cb = NULL;
+			break;
+		case 1:
+			d->d.new_conn_cb = new_connection_handler1;
+			break;
+		case 2:
+			d->d.new_conn_cb = new_connection_handler2;
+			break;
+		default:
+			assert(false);
+	}
 }
 
 void p2p_done(struct event *e, struct sim_state *s){
 	client_done(e, s);
 	struct flow *f = e->data;
 	struct p2p_data *d = s->user_data;
-	if (d->cloud_done)
+	if (d->smart_cloud)
 		cloud_flow_done(f->peer[0], f->peer[1], f->resource_id, s);
 }
 
@@ -123,6 +144,8 @@ int p2p_init(struct sim_state *s){
 		cn->maximum_bandwidth[0] = 80000;
 		cn->maximum_bandwidth[1] = 80000;
 		d->time_zone = 24*i/pd->d.ncld;
+		if (!pd->smart_cloud)
+			cloud_online(cn, s);
 	}
 	id_t rid = new_resource_random(s);
 	new_resource_handler1(rid, false, s);
@@ -150,9 +173,11 @@ int p2p_init(struct sim_state *s){
 	struct event *e = event_new(100000, USER, ue);
 	event_add(e, s);
 
-	ue = talloc(1, struct user_event);
-	ue->type = HOUR_PASS;
-	e = event_new(60*60, USER, ue);
-	event_add(e, s);
+	if (pd->smart_cloud) {
+		ue = talloc(1, struct user_event);
+		ue->type = HOUR_PASS;
+		e = event_new(60*60, USER, ue);
+		event_add(e, s);
+	}
 	return 0;
 }

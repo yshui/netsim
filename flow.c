@@ -19,6 +19,7 @@ queue_speed_event(struct flow *f, int dir,
 	se->type = dir;
 	se->speed = speed;
 	se->e = event_new(s->now+f->delay, SPEED_CHANGE, se);
+	se->e->auto_free = true;
 	se->f = f;
 
 	list_add(&se->spd_evs, &f->spd_evs);
@@ -203,6 +204,7 @@ double bwspread(struct flow *f, double amount, int dir,
 static bool _conn_fsck(struct node *src){
 	struct flow *tf;
 	double cnt = 0;
+	double tbw = 0;
 	list_for_each_entry_reverse(tf, &src->conns[0], conns[0]){
 		assert(tf->peer[0] == src);
 		struct node *dst = tf->peer[1];
@@ -210,7 +212,9 @@ static bool _conn_fsck(struct node *src){
 		HASH_FIND(hh2, src->outs, &dst->node_id, sizeof(dst->node_id), tdst);
 		assert(tf == tdst);
 		cnt += tf->speed[0];
+		tbw += tf->bwupbound;
 	}
+	assert(tbw == src->total_bwupbound[0]);
 	assert(cnt == src->bandwidth_usage[0]);
 	return cnt == src->bandwidth_usage[0];
 }

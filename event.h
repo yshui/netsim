@@ -30,7 +30,30 @@ static inline int event_cmp(struct skip_list_head *h, void *_key){
 	return e->time > key ? 1 : -1;
 }
 
+static inline bool _event_fsck(struct sim_state *s){
+	struct skip_list_head *h = s->events.next[0];
+	if (!h)
+		return true;
+	double last = 0;
+	while(h) {
+		struct event *e = skip_list_entry(h, struct event, events);
+		assert(e->time >= last);
+		assert(e->_fsck == false);
+		last = e->time;
+		h = h->next[0];
+		e->_fsck = true;
+	}
+	h = s->events.next[0];
+	while(h) {
+		struct event *e = skip_list_entry(h, struct event, events);
+		h = h->next[0];
+		e->_fsck = false;
+	}
+	return true;
+}
+
 static inline void event_add(struct event *e, struct sim_state *s){
+	assert(_event_fsck(s));
 	if (!e || e->active)
 		return;
 	if (e->time < s->now) {

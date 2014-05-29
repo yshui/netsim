@@ -19,6 +19,7 @@ void client_highwm_event(struct range *rng, struct sim_state *s);
 void client_speed_throttle(struct event *e, struct sim_state *s);
 void client_next_event(struct node *n, struct sim_state *s);
 void client_new_play1(id_t, struct node *n, struct sim_state *s);
+void client_new_play2(id_t rid, struct node *n, struct sim_state *s);
 struct node *
 server_picker1(struct node *client, struct sim_state *s);
 struct node *
@@ -30,7 +31,7 @@ is_resource_usable(struct resource *r, size_t start, struct sim_state *s){
 	range_update(rng, s);
 	if (rng->start+rng->len <= start)
 		return false;
-	if (r->owner->state == N_OFFLINE || r->owner->state == N_CLOUD_DYING)
+	if (r->owner->state == N_OFFLINE || r->owner->state == N_DYING)
 		return false;
 	return true;
 }
