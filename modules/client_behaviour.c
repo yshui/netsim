@@ -368,7 +368,7 @@ void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
 	int cnt = ds->nsvr/2;
 	//Pick up a server
-	server_picker_opt1(n, ds->metric, &cnt, n, s);
+	server_picker_opt1(n, ds->fetch_metric, &cnt, n, s);
 	assert(cnt);
 	struct node *n1 = ds->eval_table[0].n;
 	struct resource *r = store_get(n1->store, rid);
@@ -387,7 +387,7 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 		return;
 	}
 	struct def_sim *ds = s->user_data;
-	struct node *cand = server_picker_opt2(rid, 0, n, ds->metric, n, s);
+	struct node *cand = server_picker_opt2(rid, 0, n, ds->fetch_metric, n, s);
 	struct resource *r = store_get(cand->store, rid);
 	client_new_connection(rid, 0, cand, n, s);
 	int depth = 0;
@@ -402,7 +402,7 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 		int i;
 		for (i = 0; i < (1<<depth); i++) {
 			int idx = (i<<1)+1;
-			cand = server_picker_opt2(rid, strip*idx, n, ds->metric, n, s);
+			cand = server_picker_opt2(rid, strip*idx, n, ds->fetch_metric, n, s);
 			client_new_connection(rid, strip*idx, cand, n, s);
 		}
 		depth++;

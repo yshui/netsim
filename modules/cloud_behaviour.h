@@ -6,3 +6,6 @@ void cloud_online(struct node *n, struct sim_state *s);
 void cloud_offline(struct node *n, struct sim_state *s);
 void new_connection_handler1(struct node *cld, id_t rid, struct sim_state *s);
 void new_connection_handler2(struct node *cld, id_t rid, struct sim_state *s);
+void cloud_next_hour_handler(struct sim_state *s);
+void cloud_flow_done(struct node *cld, struct node *dst, id_t rid,
+		     struct sim_state *s);
