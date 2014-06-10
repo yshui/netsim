@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "record_reader.h"
 #include "analyzers.h"
@@ -49,8 +50,7 @@ struct speed_rec {
 	double time;
 	struct node *n;
 	double speed;
-	struct list_head srecs;
-	struct skip_list_head osrecs;
+	struct list_head srecs[2], osrecs;
 	int dir;
 };
 
@@ -58,7 +58,7 @@ struct node {
 	uint32_t id;
 	double ctime;
 	enum node_type type;
-	struct list_head srecs; //Speed change records
+	struct list_head srecs[2]; //Speed change records
 	int nsrec;
 	UT_hash_handle hh;
 };
@@ -93,7 +93,8 @@ struct speed_rec *node_tracker(struct node **nhash, struct record *r){
 		case R_NODE_CREATE:
 			n = talloc(1, struct node);
 			n->type = CLNT;
-			INIT_LIST_HEAD(&n->srecs);
+			INIT_LIST_HEAD(&n->srecs[0]);
+			INIT_LIST_HEAD(&n->srecs[1]);
 			n->id = r->id;
 			n->ctime = r->time;
 			HASH_ADD_INT(*nhash, id, n);
@@ -106,7 +107,7 @@ struct speed_rec *node_tracker(struct node **nhash, struct record *r){
 			HASH_FIND_INT(*nhash, &r->id, n);
 			sr->n = n;
 			sr->time = r->time;
-			list_add(&sr->srecs, &n->srecs);
+			list_add(&sr->srecs[sr->dir], &n->srecs[sr->dir]);
 			n->nsrec++;
 			break;
 	}
@@ -133,22 +134,70 @@ void lnode_finish(void *d){
 		printf("%u %s\n", n->id, strntype(n->type));
 }
 
+void print_speed(struct list_head *h, int dir){
+	struct speed_rec *sr, *psr = NULL;
+	list_for_each_entry_reverse(sr, h, srecs[dir]){
+		if (psr)
+			printf("%lf %lf\n", sr->time, psr->speed);
+		else
+			printf("%lf 0\n", sr->time);
+		printf("%lf %lf\n", sr->time, sr->speed);
+		psr = sr;
+	}
+}
+
+void print_speed_per(struct list_head *h, int dir, int period){
+	struct speed_rec *sr, *psr = NULL;
+	double last_time = 0, current = 0, left = period, last_speed = 0;
+	int count = 0;
+	list_for_each_entry_reverse(sr, h, srecs[dir]){
+		double delta = sr->time - last_time;
+		if (delta > left){
+			current += last_speed*left/period;
+			printf("%d %lf\n", count, current);
+			current = 0;
+			count++;
+			delta -= left;
+			while(delta>period){
+				printf("%d %lf\n", count, last_speed);
+				count++;
+				delta -= period;
+			}
+			current = last_speed*delta/period;
+			left = period-delta;
+		}else{
+			current += last_speed*delta/period;
+			left -= delta;
+		}
+		last_time = sr->time;
+		last_speed = sr->speed;
+	}
+	printf("%d %lf\n", count, current);
+}
+
+
 struct n1spd {
 	int node_id;
 	int dir;
+	bool per_hour;
 	struct node *nh;
 };
 
 void *n1spd_init(int argc, const char **argv){
-	if (argc != 2)
-		return NULL;
-	int id = atoi(argv[0]);
 	struct n1spd *x = talloc(1, struct n1spd);
-	if (strcmp(argv[1], "in") == 0)
-		x->dir = 1;
-	else if (strcmp(argv[1], "out") == 0)
-		x->dir = 0;
-	else
+	int id = -1;
+	int i;
+	for(i = 0; argv[i]; i++){
+		if (strcmp(argv[i], "in") == 0)
+			x->dir = 1;
+		else if (strcmp(argv[i], "out") == 0)
+			x->dir = 0;
+		else if (strcmp(argv[i], "-h") == 0)
+			x->per_hour = true;
+		else
+			id = atoi(argv[i]);
+	}
+	if (id < 0)
 		return NULL;
 	x->node_id = id;
 	return x;
@@ -164,25 +213,87 @@ void n1spd_finish(void *d){
 	struct node *n = NULL;
 	HASH_FIND_INT(x->nh, &x->node_id, n);
 	assert(n);
-	struct speed_rec *sr, *psr = NULL;
-	printf("#Speed report for node %u, dir %d\n#Time\tSpeed\n",
-	       x->node_id, x->dir);
-	printf("%lf 0\n", n->ctime);
-	list_for_each_entry_reverse(sr, &n->srecs, srecs){
-		if (sr->dir != x->dir)
-			continue;
-		if (psr)
-			printf("%lf %lf\n", sr->time, psr->speed);
+	if (!x->per_hour) {
+		printf("#Speed report for node %u, dir %d\n#Time\tSpeed\n",
+				n->id, x->dir);
+		printf("%lf 0\n", n->ctime);
+		print_speed(&n->srecs[x->dir], x->dir);
+	}else
+		print_speed_per(&n->srecs[x->dir], x->dir, 60*60);
+}
+
+struct ntspd {
+	int dir;
+	int type;
+	bool per_hour;
+	enum node_type nt;
+	struct node *nh;
+	struct list_head osrecs;
+};
+
+void *ntspd_init(int argc, const char **argv){
+	struct ntspd *x = talloc(1, struct ntspd);
+	INIT_LIST_HEAD(&x->osrecs);
+	int id = -1;
+	int i;
+	for(i = 0; argv[i]; i++){
+		if (strcmp(argv[i], "in") == 0)
+			x->dir = 1;
+		else if (strcmp(argv[i], "out") == 0)
+			x->dir = 0;
+		else if (strcmp(argv[i], "-h") == 0)
+			x->per_hour = true;
+		else if (strcmp(argv[i], "server") == 0)
+			x->nt = SVR;
+		else if (strcmp(argv[i], "client") == 0)
+			x->nt = CLNT;
+		else if (strcmp(argv[i], "cloud") == 0)
+			x->nt = CLD;
 		else
-			printf("%lf 0\n", sr->time);
-		printf("%lf %lf\n", sr->time, sr->speed);
-		psr = sr;
+			return NULL;
 	}
+	return x;
+}
+
+void ntspd_next_record(void *d, struct record *r){
+	struct ntspd *x = d;
+	struct speed_rec *sr = node_tracker(&x->nh, r);
+	if (sr && sr->dir == x->dir)
+		list_add(&sr->osrecs, &x->osrecs);
+}
+
+void ntspd_finish(void *d){
+	struct ntspd *x = d;
+	struct speed_rec *sr;
+	double speed = 0;
+	struct list_head h;
+	INIT_LIST_HEAD(&h);
+	list_for_each_entry_reverse(sr, &x->osrecs, osrecs){
+		if (sr->n->type != x->nt)
+			continue;
+		//The order of speed records is reversed, so use .next
+		struct speed_rec *psr =
+			list_entry(sr->srecs[x->dir].next, struct speed_rec,
+				   srecs[x->dir]);
+		if (sr->srecs[x->dir].next != &sr->n->srecs[x->dir])
+			speed -= psr->speed;
+		speed += sr->speed;
+		struct speed_rec *nsr = talloc(1, struct speed_rec);
+		nsr->speed = speed;
+		nsr->time = sr->time;
+		list_add(&nsr->srecs[x->dir], &h);
+	}
+	if (!x->per_hour){
+		printf("0 0\n");
+		print_speed(&h, x->dir);
+	}else
+		print_speed_per(&h, x->dir, 60*60);
 }
 
 struct analyzer analyzer_table[] = {
 	{"test", NULL, test_next_record, NULL},
 	{"list_nodes", lnode_init, lnode_next_record, lnode_finish},
 	{"single_node_speed", n1spd_init, n1spd_next_record, n1spd_finish},
+	{"node_type_speed", ntspd_init, ntspd_next_record, ntspd_finish},
 	{NULL, NULL, NULL},
 };
