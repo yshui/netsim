@@ -3,6 +3,7 @@
 #include "data.h"
 #include "log.h"
 #include "record.h"
+#include "range.h"
 
 struct packet{
 	struct node *src, *dst;
@@ -41,4 +42,12 @@ void print_range(struct resource *r){
 static inline
 void sim_end(struct sim_state *s){
 	s->exit = true;
+}
+
+static inline
+void node_del_resource(struct resource *r){
+	range_clear(r);
+	skip_list_deinit_head(&r->ranges);
+	store_delete(r->owner->store, r);
+	free(r);
 }

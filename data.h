@@ -20,7 +20,7 @@ struct range {
 	struct skip_list_head ranges;
 	struct list_head consumers;
 	struct flow *producer;
-	struct node *owner;
+	struct resource *owner;
 };
 
 struct resource {
@@ -30,6 +30,8 @@ struct resource {
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
 	struct node *owner;
+	int consumer;
+	bool auto_delete;
 };
 
 struct store {
@@ -241,6 +243,7 @@ struct resource *resource_new(id_t id, size_t s){
 	skip_list_init_head(&r->ranges);
 	r->len = s;
 	r->resource_id = id;
+	r->auto_delete = false;
 	return r;
 }
 

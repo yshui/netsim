@@ -11,6 +11,7 @@
 #include "event.h"
 #include "record.h"
 #include "record_wrapper.h"
+#include "sim.h"
 
 extern inline void
 queue_speed_event(struct flow *f, int dir,
@@ -253,6 +254,10 @@ void flow_close(struct flow *f, struct sim_state *s){
 	//Close the flow
 	if (f->drng && f->drng->producer == f)
 		f->drng->producer = NULL;
+	f->srng->owner->consumer--;
+	assert(f->srng->owner->consumer >= 0);
+	if (f->srng->owner->consumer == 0 && f->srng->owner->auto_delete)
+		node_del_resource(f->srng->owner);
 	list_del(&f->consumers);
 	event_remove(f->done);
 	event_remove(f->drain);

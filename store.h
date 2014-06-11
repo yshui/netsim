@@ -9,6 +9,20 @@ store_get(struct store *s, id_t resource_id){
 	return r;
 }
 
+static inline void
+store_delete(struct store *s, struct resource *r){
+	HASH_DEL(s->rsrc_hash, r);
+	s->total_size -= r->len;
+}
+
+static inline void
+store_del(struct store *s, id_t resource_id){
+	struct resource *r = NULL;
+	HASH_FIND_INT(s->rsrc_hash, &resource_id, r);
+	if (r)
+		store_delete(s, r);
+}
+
 static inline int
 store_set(struct store *s, struct resource *rsrc){
 	struct resource *rr = NULL;

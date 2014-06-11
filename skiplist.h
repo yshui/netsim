@@ -25,6 +25,12 @@ static inline void skip_list_init_head(struct skip_list_head *h){
 	h->prev = NULL;
 }
 
+static inline void skip_list_deinit_head(struct skip_list_head *h){
+	h->h = 0;
+	free(h->next);
+	h->next = NULL;
+}
+
 static inline int skip_list_gen_height(void){
 	int r = random();
 	int h = 1;
@@ -35,10 +41,16 @@ static inline int skip_list_gen_height(void){
 
 static inline void skip_list_init_node(struct skip_list_head *n){
 	int newh = skip_list_gen_height();
-	//assert(!n->next);
 	n->next = talloc(newh, struct skip_list_head *);
 	n->prev = talloc(newh, struct skip_list_head *);
 	n->h = newh;
+}
+
+static inline void skip_list_deinit_node(struct skip_list_head *n){
+	free(n->next);
+	free(n->prev);
+	n->next = n->prev = NULL;
+	n->h = 0;
 }
 
 typedef int (*skip_list_cmp)(struct skip_list_head *a, void *key);
@@ -104,14 +116,6 @@ skip_list_find_le(struct skip_list_head *h, void *key, skip_list_cmp cmp){
 	return hs[0] == h ? NULL : hs[0];
 }
 
-static inline void
-skip_list_node_free(struct skip_list_head *n){
-	free(n->next);
-	free(n->prev);
-	//node->next = node->prev = NULL;
-	n->h = 0;
-}
-
 static inline struct skip_list_head *
 skip_list_extract_by_key(struct skip_list_head *h, void *key, skip_list_cmp cmp){
 	int i;
@@ -126,7 +130,7 @@ skip_list_extract_by_key(struct skip_list_head *h, void *key, skip_list_cmp cmp)
 		if (node->next[i])
 			node->next[i]->prev[i] = node->prev[i];
 	}
-	skip_list_node_free(node);
+	skip_list_deinit_node(node);
 	return node;
 }
 
@@ -139,5 +143,16 @@ skip_list_delete(struct skip_list_head *h){
 		if (h->next[i])
 			h->next[i]->prev[i] = h->prev[i];
 	}
-	skip_list_node_free(h);
+	skip_list_deinit_node(h);
 }
+
+static inline void
+skip_list_clear(struct skip_list_head *h, void (*freep)(struct skip_list_head *)){
+	struct skip_list_head *hx = h->next[0];
+	while(hx){
+		struct skip_list_head *tmp = hx->next[0];
+		freep(hx);
+		hx = tmp;
+	}
+}
+

@@ -29,7 +29,7 @@ static inline int event_cmp(struct skip_list_head *h, void *_key){
 	double key = *(double *)_key;
 	return e->time > key ? 1 : -1;
 }
-
+#ifndef NDEBUG
 static inline bool _event_fsck(struct sim_state *s){
 	struct skip_list_head *h = s->events.next[0];
 	if (!h)
@@ -51,6 +51,7 @@ static inline bool _event_fsck(struct sim_state *s){
 	}
 	return true;
 }
+#endif
 
 static inline void event_add(struct event *e, struct sim_state *s){
 	assert(_event_fsck(s));

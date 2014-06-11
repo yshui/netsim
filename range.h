@@ -65,7 +65,7 @@ resource_new_range(struct resource *r, size_t start, size_t len){
 
 	struct range *rng = range_new(start, len);
 	rng->total_len = r->len;
-	rng->owner = r->owner;
+	rng->owner = r;
 	skip_list_insert(&r->ranges, &rng->ranges, &rng->start, range_start_cmp);
 	return rng;
 }
@@ -93,4 +93,22 @@ static inline void range_update(struct range *r, struct sim_state *s){
 	r->lenc = (t-r->len)-delta;
 	r->len = t;
 	r->last_update = s->now;
+}
+
+static inline void range_freep(struct skip_list_head *h){
+	struct range *r = skip_list_entry(h, struct range, ranges);
+	//Make sure we can free this range
+	assert(!r->producer);
+#ifndef NDEBUG
+	struct flow *f;
+	list_for_each_entry(f, &r->consumers, consumers){
+		assert(false);
+	}
+#endif
+	skip_list_deinit_node(&r->ranges);
+	free(r);
+}
+
+static inline void range_clear(struct resource *r){
+	skip_list_clear(&r->ranges, range_freep);
 }

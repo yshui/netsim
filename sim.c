@@ -22,8 +22,27 @@ void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 	event_add(e, s);
 }
 
+static bool _resource_fsck(struct resource *r){
+	struct skip_list_head *h = r->ranges.next[0];
+	int cnt = 0;
+	while(h){
+		struct flow *f;
+		struct range *rng = skip_list_entry(h, struct range, ranges);
+		list_for_each_entry(f, &rng->consumers, consumers)
+			cnt++;
+		h = h->next[0];
+	}
+	assert(cnt == r->consumer);
+	return true;
+}
+
 struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct node *dst,
 		       struct sim_state *s){
+#ifndef NDEBUG
+	struct resource *tmpr, *ttmpr;
+	HASH_ITER(hh, src->store->rsrc_hash, tmpr, ttmpr)
+		assert(_resource_fsck(tmpr));
+#endif
 	struct resource *sr = store_get(src->store, rid);
 	if (!sr) {
 		log_err("The resource %d doesn't exist on source node %d\n", rid, src->node_id);
@@ -56,6 +75,8 @@ struct flow *sim_establish_flow(id_t rid, size_t start, struct node *src, struct
 	nf->resource_id = rid;
 	range_calc_and_requeue_events(nf, s);
 	list_add(&nf->consumers, &rng->consumers);
+
+	sr->consumer++;
 
 	//update prev range's events
 	struct skip_list_head *ph = nf->drng->ranges.prev[0];

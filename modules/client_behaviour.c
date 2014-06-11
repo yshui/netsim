@@ -15,7 +15,7 @@
 #include <assert.h>
 
 void client_lowwm_event(struct range *rng, struct sim_state *s){
-	struct def_user *d = rng->owner->user_data;
+	struct def_user *d = rng->owner->owner->user_data;
 	struct user_event *ue;
 	//Make sure the node state is updated!!
 	assert(d->n->state == d->next_state);
@@ -91,7 +91,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 
 void client_highwm_event(struct range *rng, struct sim_state *s){
 	range_update(rng, s);
-	struct node *n = rng->owner;
+	struct node *n = rng->owner->owner;
 	struct def_user *d = n->user_data;
 	struct user_event *ue;
 	//Make sure the node state is updated!!
@@ -302,6 +302,7 @@ void client_done(struct event *e, struct sim_state *s){
 	struct flow *f = e->data;
 	struct range *rng = f->drng;
 	struct def_user *d = f->peer[1]->user_data;
+	struct def_sim *ds = s->user_data;
 	if (f->peer[1]->state == N_PLAYING)
 		d->buffer_pos += d->bit_rate*(s->now-d->last_update)+eps;
 	d->last_update = s->now;
@@ -313,7 +314,6 @@ void client_done(struct event *e, struct sim_state *s){
 	//The drng is merged with next range
 	client_lowwm_event(rng, s);
 	client_highwm_event(rng, s);
-
 }
 
 void client_next_event(struct node *n, struct sim_state *s){
@@ -372,6 +372,8 @@ void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 	}
 	struct def_sim *ds = s->user_data;
 	int cnt = ds->nsvr/2;
+	if (cnt <= 0)
+		cnt = 1;
 	//Pick up a server
 	server_picker_opt1(n, ds->fetch_metric, &cnt, n, s);
 	assert(cnt);

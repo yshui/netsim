@@ -17,6 +17,7 @@ void next_resource_event(struct sim_state *s){
 	ue->type = NEW_RESOURCE;
 	ue->data = r;
 	struct event *e = event_new(s->now+time, USER, ue);
+	e->auto_free = true;
 	event_add(e, s);
 }
 
@@ -48,6 +49,18 @@ id_t new_resource(struct resource_model *r, struct sim_state *s){
 		struct resource_entry *re = list_entry(h, struct resource_entry, probs);
 		HASH_DEL(ds->rsrcs, re);
 		list_del(h);
+		//Should also free all of its provider
+		struct resource_provider *rp, *tmprp;
+		HASH_ITER(hh, re->holders, rp, tmprp){
+			HASH_DEL(re->holders, rp);
+			//Remove resource if don't have consumer
+			if (rp->r->consumer == 0)
+				node_del_resource(rp->r);
+			else
+				rp->r->auto_delete = true;
+			free(rp);
+		}
+		free(re);
 	}else
 		ds->nrsrc++;
 	int new_rank = random()%ds->nrsrc;
@@ -70,6 +83,7 @@ id_t new_resource(struct resource_model *r, struct sim_state *s){
 	}
 
 	id_t ret = nr->resource_id;
+	skip_list_deinit_head(&nr->ranges);
 	free(nr);
 	return ret;
 }

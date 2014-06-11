@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_C_FLAGS_DEBUG "-gdwarf-4 -g3")
 set(CMAKE_C_FLAGS_RELEASE "-march=native -O3 -flto -fuse-linker-plugin -DNDEBUG ")
-if (CMAKE_BUILD_TYPE EQUAL "Release")
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(CMAKE_AR "gcc-ar")
 	set(CMAKE_RANLIB "gcc-ranlib")
 endif()

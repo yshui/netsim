@@ -22,6 +22,7 @@ struct def_user {
 	int time_zone;
 	//0 = always online, 1 = not so
 	int type;
+	enum node_state nt;
 	int cloud_push_dst;
 };
 
@@ -87,6 +88,7 @@ p2p_new_node(struct sim_state *s){
 	struct def_sim *ds = s->user_data;
 	n->user_data = d = (struct def_user *)talloc(1, struct def_user);
 	d->n = n;
+	d->nt = N_IDLE;
 	list_add(&d->nodes, &ds->nodes);
 
 	ds->nnd++;
@@ -105,6 +107,7 @@ p2p_new_server(struct sim_state *s){
 	struct def_user *d = n->user_data;
 	sim_node_change_state(n, N_SERVER, s);
 	d->next_state = n->state;
+	d->nt = N_SERVER;
 	struct server *ss = talloc(1, struct server);
 	ss->n = n;
 	list_add(&ss->servers, &ds->servers);
@@ -117,6 +120,8 @@ static inline struct node *
 p2p_new_cloud(struct sim_state *s){
 	struct node *n = p2p_new_node(s);
 	struct def_sim *ds = s->user_data;
+	struct def_user *d = n->user_data;
+	d->nt = N_CLOUD;
 	n->state = N_OFFLINE;
 	struct cloud_node *cn = talloc(1, struct cloud_node);
 	cn->n = n;
@@ -179,6 +184,20 @@ static inline double distance_based_bw(void *_a, void *_b){
 	int d = a->time_zone-b->time_zone;
 	if (d < 0)
 		d = -d;
+	return 4000-100*d;
+}
+
+static inline double distance_type_based_bw(void *_a, void *_b){
+	struct def_user *a = _a, *b = _b;
+	//Assmue linear decrease from 4000~1700
+	int d = a->time_zone-b->time_zone;
+	if (d < 0)
+		d = -d;
+	if ((a->nt == N_SERVER || a->nt == N_CLOUD) &&
+	    (b->nt == N_SERVER || b->nt == N_CLOUD))
+		//cloud/server <-> cloud/server
+		//different formula
+		return 80000-3500*d;
 	return 4000-100*d;
 }
 
