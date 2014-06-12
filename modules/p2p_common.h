@@ -207,7 +207,7 @@ static inline double distance_based_delay(void *_a, void *_b){
 	int d = a->time_zone-b->time_zone;
 	if (d < 0)
 		d = -d;
-	return 0.02*d;
+	return 0.02*d+0.1;
 }
 
 static inline int get_hour(struct node *n, struct sim_state *s){

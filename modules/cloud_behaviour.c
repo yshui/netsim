@@ -11,6 +11,8 @@ void new_resource_handler1(id_t rid, bool delay, struct sim_state *s){
 	list_for_each_entry(cn, &ds->cloud_nodes, cloud_nodes) {
 		if (delay && !is_busy_hour(get_hour(cn->n, s)))
 			continue;
+		if (cn->n->state != N_CLOUD)
+			cloud_online(cn->n, s);
 		int cnt = ds->nsvr/2, i;
 		if (cnt <= 0)
 			cnt = 1;
@@ -115,12 +117,34 @@ static inline void new_connection_handler(struct node *cld, id_t rid,
 	cloud_push1(rid, cld, s, client);
 }
 
+void cloud_kill(struct node *n, struct sim_state *s){
+	struct def_user *d = n->user_data;
+	struct def_sim *ds = s->user_data;
+	if (d->type != 1)
+		//Not allowed to kill
+		return;
+	assert(n->state == N_DYING ||
+	       n->state == N_CLOUD ||
+	       n->state == N_OFFLINE);
+	if (n->state != N_CLOUD)
+		return;
+	if (list_empty(&n->conns[0]) && list_empty(&n->conns[1]))
+		sim_node_change_state(n, N_OFFLINE, s);
+	else
+		sim_node_change_state(n, N_DYING, s);
+	d->next_state = n->state;
+	ds->ncld_on--;
+}
+
 void cloud_next_hour_handler(struct sim_state *s){
 	struct cloud_node *cn;
-	struct def_sim *ds;
+	struct def_sim *ds = s->user_data;
 	list_for_each_entry_reverse(cn, &ds->cloud_nodes, cloud_nodes){
-		if (is_busy_hour(get_hour(cn->n, s)))
+		if (is_busy_hour(get_hour(cn->n, s))) {
+			if (cn->n->state == N_CLOUD)
+				cloud_kill(cn->n, s);
 			continue;
+		}
 		//Look ahead 3 hour
 		if (!is_busy_hour(get_hour(cn->n, s)+3))
 			continue;
@@ -130,6 +154,10 @@ void cloud_next_hour_handler(struct sim_state *s){
 		list_for_each_entry(re, &ds->rsrc_probs, probs){
 			if (cn->n->total_bwupbound[1] > cn->n->maximum_bandwidth[1])
 				break;
+			struct resource *r = store_get(cn->n->store, re->resource_id);
+			if (r)
+				//Already have this resource, or already downloading
+				continue;
 			struct server *sn;
 			bool flag;
 			list_for_each_entry(sn, &ds->servers, servers){
@@ -151,22 +179,6 @@ void new_connection_handler1(struct node *cld, id_t rid, struct sim_state *s){
 
 void new_connection_handler2(struct node *cld, id_t rid, struct sim_state *s){
 	new_connection_handler(cld, rid, true, s);
-}
-
-void cloud_kill(struct node *n, struct sim_state *s){
-	struct def_user *d = n->user_data;
-	struct def_sim *ds = s->user_data;
-	assert(n->state == N_DYING ||
-	       n->state == N_CLOUD ||
-	       n->state == N_OFFLINE);
-	if (n->state != N_CLOUD)
-		return;
-	if (list_empty(&n->conns[0]) && list_empty(&n->conns[1]))
-		sim_node_change_state(n, N_OFFLINE, s);
-	else
-		sim_node_change_state(n, N_DYING, s);
-	d->next_state = n->state;
-	ds->ncld_on--;
 }
 
 void cloud_flow_done(struct node *cld, struct node *dst, id_t rid,

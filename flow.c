@@ -254,9 +254,12 @@ void flow_close(struct flow *f, struct sim_state *s){
 	//Close the flow
 	if (f->drng && f->drng->producer == f)
 		f->drng->producer = NULL;
-	f->srng->owner->consumer--;
-	assert(f->srng->owner->consumer >= 0);
-	if (f->srng->owner->consumer == 0 && f->srng->owner->auto_delete)
+	f->srng->owner->nconsumer--;
+	f->drng->owner->nproducer--;
+	assert(f->srng->owner->nconsumer >= 0);
+	assert(f->drng->owner->nproducer >= 0);
+	struct resource *sr = f->srng->owner;
+	if (sr->nconsumer == 0 && sr->nproducer == 0 && sr->auto_delete)
 		node_del_resource(f->srng->owner);
 	list_del(&f->consumers);
 	event_remove(f->done);

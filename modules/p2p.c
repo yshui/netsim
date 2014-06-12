@@ -105,7 +105,8 @@ void p2p_done(struct event *e, struct sim_state *s){
 	client_done(e, s);
 	struct flow *f = e->data;
 	struct p2p_data *d = s->user_data;
-	if (d->smart_cloud)
+	struct def_user *sd = f->peer[0]->user_data;
+	if (sd->nt == N_CLOUD)
 		cloud_flow_done(f->peer[0], f->peer[1], f->resource_id, s);
 }
 
@@ -145,7 +146,10 @@ int p2p_init(struct sim_state *s){
 		cn->maximum_bandwidth[1] = 80000;
 		d->time_zone = 24*i/pd->d.ncld;
 		if (!pd->smart_cloud)
+			//Cloud is always online if not smart_cloud
 			cloud_online(cn, s);
+		else
+			d->type = 1;
 	}
 	id_t rid = new_resource_random(s);
 	new_resource_handler1(rid, false, s);
@@ -175,6 +179,7 @@ int p2p_init(struct sim_state *s){
 	event_add(e, s);
 
 	if (pd->smart_cloud) {
+		//Add next_hour event
 		ue = talloc(1, struct user_event);
 		ue->type = HOUR_PASS;
 		e = event_new(60*60, USER, ue);

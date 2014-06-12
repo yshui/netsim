@@ -68,7 +68,7 @@ static inline void event_add(struct event *e, struct sim_state *s){
 		log_err("Add event at nan\n");
 		abort();
 	}
-	log_debug("Event add %d %lf\n", e->type, e->time);
+	log_debug("[%lf] Event add %d %lf\n", s->now, e->type, e->time);
 	e->active = true;
 	skip_list_insert(&s->events, &e->events, &e->time, event_cmp);
 }

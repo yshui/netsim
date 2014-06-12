@@ -4,6 +4,7 @@
 #include "flow.h"
 #include "p2p_common.h"
 #include "qselect.h"
+#include "gaussian.h"
 
 typedef int (*eval_func)(struct node *n, void *data);
 
@@ -100,9 +101,9 @@ server_picker_opt2(id_t rid, size_t start, struct node *client, eval_func opt,
 static inline double
 get_break_by_hour(int hour){
 	if (hour > 12 && hour < 20)
-		return 1200;
+		return gaussian_noise(150, 1200);
 	else
-		return 3600;
+		return gaussian_noise(900, 3600);
 }
 
 static inline bool

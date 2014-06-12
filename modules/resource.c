@@ -54,7 +54,7 @@ id_t new_resource(struct resource_model *r, struct sim_state *s){
 		HASH_ITER(hh, re->holders, rp, tmprp){
 			HASH_DEL(re->holders, rp);
 			//Remove resource if don't have consumer
-			if (rp->r->consumer == 0)
+			if (rp->r->nconsumer == 0 && rp->r->nproducer == 0)
 				node_del_resource(rp->r);
 			else
 				rp->r->auto_delete = true;

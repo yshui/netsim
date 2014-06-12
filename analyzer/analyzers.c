@@ -60,6 +60,7 @@ struct node {
 	enum node_type type;
 	struct list_head srecs[2]; //Speed change records
 	int nsrec;
+	int tmp_state;
 	UT_hash_handle hh;
 };
 
@@ -97,6 +98,7 @@ struct speed_rec *node_tracker(struct node **nhash, struct record *r){
 			INIT_LIST_HEAD(&n->srecs[1]);
 			n->id = r->id;
 			n->ctime = r->time;
+			n->tmp_state = -1;
 			HASH_ADD_INT(*nhash, id, n);
 			break;
 		case R_IN_USAGE:
@@ -290,10 +292,91 @@ void ntspd_finish(void *d){
 		print_speed_per(&h, x->dir, 60*60);
 }
 
+struct state_record {
+	int new_state;
+	double time;
+	struct node *n;
+	struct list_head srs;
+};
+
+struct cldol {
+	struct node *nh;
+	struct list_head srs;
+};
+
+void *cldol_init(int argc, const char **argv){
+	struct cldol *d = talloc(1, struct cldol);
+	INIT_LIST_HEAD(&d->srs);
+	return d;
+}
+
+void cldol_next_record(void *d, struct record *r){
+	struct cldol *x = d;
+	node_tracker(&x->nh, r);
+	if (r->major == 0 && r->minor == R_NODE_STATE) {
+		struct state_record *sr = talloc(1, struct state_record);
+		struct node *n;
+		HASH_FIND_INT(x->nh, &r->id, n);
+		assert(n);
+		sr->n = n;
+		sr->time = r->time;
+		sr->new_state = r->a.u8;
+		list_add(&sr->srs, &x->srs);
+	}
+}
+
+#define eps (1e-6)
+
+void cldol_finish(void *d){
+	struct state_record *sr;
+	struct cldol *x = d;
+	int online = 0;
+	double last_time = 0;
+	bool changed = false;
+	list_for_each_entry_reverse(sr, &x->srs, srs){
+		if (sr->n->type != CLD)
+			continue;
+		if (sr->n->tmp_state < 0) {
+			if (sr->new_state == N_CLOUD) {
+				online++;
+				changed = true;
+			}
+		}else if (sr->n->tmp_state == N_DYING) {
+			assert(sr->new_state == N_OFFLINE ||
+			       sr->new_state == N_CLOUD);
+			if (sr->new_state == N_OFFLINE) {
+				online--;
+				changed = true;
+			}
+		}else if (sr->n->tmp_state == N_OFFLINE) {
+			assert(sr->new_state == N_CLOUD);
+			if (sr->new_state == N_CLOUD) {
+				online++;
+				changed = true;
+			}
+		}else if (sr->n->tmp_state == N_CLOUD) {
+			assert(sr->new_state == N_OFFLINE ||
+			       sr->new_state == N_DYING);
+			if (sr->new_state == N_OFFLINE) {
+				online--;
+				changed = true;
+			}
+		}
+//		fprintf(stderr, "%s %s\n", strstate(sr->n->tmp_state), strstate(sr->new_state));
+		sr->n->tmp_state = sr->new_state;
+		if (changed && sr->time > last_time+eps) {
+			printf("%lf %d\n", sr->time, online);
+			changed = false;
+		}
+		last_time = sr->time;
+	}
+}
+
 struct analyzer analyzer_table[] = {
 	{"test", NULL, test_next_record, NULL},
 	{"list_nodes", lnode_init, lnode_next_record, lnode_finish},
 	{"single_node_speed", n1spd_init, n1spd_next_record, n1spd_finish},
 	{"node_type_speed", ntspd_init, ntspd_next_record, ntspd_finish},
+	{"online_cloud", cldol_init, cldol_next_record, cldol_finish},
 	{NULL, NULL, NULL},
 };

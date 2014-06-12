@@ -6,6 +6,10 @@ if ("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
 	set(CMAKE_RANLIB "gcc-ranlib")
 endif()
 
+if (NDEBUG)
+	set(CMAKE_C_FLAGS_DEBUG "-g -DNDEBUG")
+endif()
+
 
 add_executable(netsim
 	sim.c

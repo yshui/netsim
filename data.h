@@ -30,7 +30,7 @@ struct resource {
 	struct skip_list_head ranges;
 	UT_hash_handle hh;
 	struct node *owner;
-	int consumer;
+	int nproducer, nconsumer;
 	bool auto_delete;
 };
 
@@ -87,7 +87,7 @@ struct flow {
 };
 
 enum node_state {
-	N_OFFLINE,
+	N_OFFLINE = 0,
 	N_STALE,
 	N_PLAYING,
 	N_DONE,

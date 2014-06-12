@@ -66,13 +66,14 @@ strrtype(int rtype){
 }
 
 enum node_state {
-	N_OFFLINE,
+	N_OFFLINE = 0,
 	N_STALE,
 	N_PLAYING,
 	N_DONE,
 	N_IDLE,
 	N_SERVER,
 	N_CLOUD,
+	N_DYING,
 };
 
 static inline
@@ -92,6 +93,8 @@ const char *strstate(int state){
 			return "Cloud";
 		case N_SERVER:
 			return "Server";
+		case N_DYING:
+			return "Dying";
 	}
 	return NULL;
 }
