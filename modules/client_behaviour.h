@@ -95,6 +95,8 @@ server_picker_opt2(id_t rid, size_t start, struct node *client, eval_func opt,
 				min = val;
 			}
 		}
+	if (!res && start == 0)
+		log_warning("[%lf] Warning: no candidate found for rid %d created at %lf\n", s->now, rid, re->ctime);
 	return res;
 }
 

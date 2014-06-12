@@ -34,7 +34,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 	double sgrow = srng->producer ? srng->producer->speed[1] : 0;
 	double fbw = f->speed[1];
 	//The flow always appends to a range
-	int drng_start = f->drng->start+f->drng->len-srng->start;
+	double drng_start = f->drng->start+f->drng->len-srng->start;
 	assert(srng->len > drng_start-eps);
 	double drain_time = (srng->len-drng_start)/(fbw-sgrow);
 

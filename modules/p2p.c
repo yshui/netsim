@@ -135,7 +135,7 @@ int p2p_init(struct sim_state *s){
 		struct def_user *d = n->user_data;
 		n->maximum_bandwidth[0] = 160000;
 		n->maximum_bandwidth[1] = 320000;
-		d->time_zone = 24*i/pd->d.nsvr;
+		d->time_zone = 24*i/pd->nsvr;
 	}
 
 	for(i = 0; i < pd->ncld; i++) {
@@ -144,7 +144,7 @@ int p2p_init(struct sim_state *s){
 		cloud_online(cn, s);
 		cn->maximum_bandwidth[0] = 80000;
 		cn->maximum_bandwidth[1] = 80000;
-		d->time_zone = 24*i/pd->d.ncld;
+		d->time_zone = 24*i/pd->ncld;
 		if (!pd->smart_cloud)
 			//Cloud is always online if not smart_cloud
 			cloud_online(cn, s);

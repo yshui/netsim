@@ -27,6 +27,8 @@ id_t new_resource(struct resource_model *r, struct sim_state *s){
 	double rlen = gaussian_noise(r->lvar, r->lm);
 	double rbr = gaussian_noise(r->brvar, r->brm);
 	struct resource_entry *re = talloc(1, struct resource_entry);
+	re->ctime = s->now;
+
 	struct resource_entry *nre = NULL;
 	do {
 		re->resource_id = random();

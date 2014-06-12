@@ -21,6 +21,7 @@ struct resource_provider {
 struct resource_entry {
 	id_t resource_id;
 	double prob;
+	double ctime;
 	struct list_head probs;
 	struct resource_provider *holders;
 	UT_hash_handle hh;

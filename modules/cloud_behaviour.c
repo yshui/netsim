@@ -7,10 +7,12 @@ void new_resource_handler1(id_t rid, bool delay, struct sim_state *s){
 	//Naive, fetch from nearest n/2 server
 	struct def_sim *ds = s->user_data;
 	struct cloud_node *cn;
+	int ccnt = 0;
 
 	list_for_each_entry(cn, &ds->cloud_nodes, cloud_nodes) {
 		if (delay && !is_busy_hour(get_hour(cn->n, s)))
 			continue;
+		ccnt++;
 		if (cn->n->state != N_CLOUD)
 			cloud_online(cn->n, s);
 		int cnt = ds->nsvr/2, i;
@@ -23,6 +25,7 @@ void new_resource_handler1(id_t rid, bool delay, struct sim_state *s){
 		for(i = 0; i < cnt; i++)
 			client_new_connection(rid, i*split, ds->eval_table[i].n, cn->n, s);
 	}
+	log_info("%d downloaders for rid %d\n", ccnt, rid);
 }
 
 static inline int _nv_cmp(const void *a, const void *b){
@@ -159,7 +162,7 @@ void cloud_next_hour_handler(struct sim_state *s){
 				//Already have this resource, or already downloading
 				continue;
 			struct server *sn;
-			bool flag;
+			bool flag = false;
 			list_for_each_entry(sn, &ds->servers, servers){
 				if (sn->n->bandwidth_usage[0] < 0.8*sn->n->bandwidth_usage[0]) {
 					flag = true;
