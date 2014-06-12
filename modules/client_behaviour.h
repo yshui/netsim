@@ -84,19 +84,28 @@ server_picker_opt2(id_t rid, size_t start, struct node *client, eval_func opt,
 		return NULL;
 
 	int min = INT32_MAX;
+	int cnt1 = 0, cnt2 = 0;
 	struct node *res = NULL;
 	struct resource_provider *rp, *tmp;
-	HASH_ITER(hh, re->holders, rp, tmp)
-		if (is_resource_usable(rp->r, start, s) &&
-		    !is_connected(rp->r->owner, client)) {
-			int val = opt(rp->r->owner, data);
-			if (val < min) {
-				res = rp->r->owner;
-				min = val;
-			}
+	HASH_ITER(hh, re->holders, rp, tmp) {
+		if (!is_resource_usable(rp->r, start, s)) {
+			cnt1++;
+			continue;
 		}
-	if (!res && start == 0)
+		if(is_connected(rp->r->owner, client)) {
+			cnt2++;
+			continue;
+		}
+		int val = opt(rp->r->owner, data);
+		if (val < min) {
+			res = rp->r->owner;
+			min = val;
+		}
+	}
+	if (!res && start == 0) {
 		log_warning("[%lf] Warning: no candidate found for rid %d created at %lf\n", s->now, rid, re->ctime);
+		log_warning("resource not usable: %d connected: %d\n", cnt1, cnt2);
+	}
 	return res;
 }
 

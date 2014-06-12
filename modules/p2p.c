@@ -174,7 +174,7 @@ int p2p_init(struct sim_state *s){
 
 	struct user_event *ue = talloc(1, struct user_event);
 	ue->type = SIM_END;
-	struct event *e = event_new(100000, USER, ue);
+	struct event *e = event_new(pd->end_simulation, USER, ue);
 	e->auto_free = true;
 	event_add(e, s);
 

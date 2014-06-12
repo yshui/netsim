@@ -47,6 +47,8 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 					continue;
 				if (d->n->state == N_OFFLINE || d->n->state == N_DYING)
 					continue;
+				if (is_connected(src, d->n))
+					continue;
 				struct resource *r = store_get(d->n->store, rid);
 				if (r)
 					continue;
@@ -67,6 +69,10 @@ void cloud_push1(id_t rid, struct node *src, struct sim_state *s, bool client){
 	list_for_each_entry(cn, &ds->cloud_nodes, cloud_nodes){
 		struct resource *r = store_get(cn->n->store, rid);
 		if (r)
+			continue;
+		if (is_connected(src, d->n))
+			continue;
+		if (src == d->n)
 			continue;
 		if (cn->n->state != N_CLOUD) {
 			assert(cn->n->state == N_OFFLINE);

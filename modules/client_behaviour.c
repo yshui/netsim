@@ -396,7 +396,8 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 	struct def_sim *ds = s->user_data;
 	struct node *cand = server_picker_opt2(rid, 0, n, ds->fetch_metric, n, s);
 	if (!cand){
-		//No candidates, we don't play
+		//No candidates, we try play1
+		client_new_play1(rid, n, s);
 		return;
 	}
 	struct resource *r = store_get(cand->store, rid);
