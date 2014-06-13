@@ -3,6 +3,7 @@
 #include "sim.h"
 #include "common.h"
 #include "record.h"
+#include "flow.h"
 
 struct def_user {
 	double bit_rate;
@@ -75,7 +76,6 @@ struct def_sim {
 	int start_hour;//Start hour in UTC+0
 	struct nv_pair *eval_table;
 	int eval_size;
-	double tvar, tm;
 	int (*fetch_metric)(struct node *, void *);
 	int (*push_metric)(struct node *, void *);
 	void (*new_conn_cb)(struct node *, id_t, struct sim_state *);
@@ -185,6 +185,16 @@ static inline double distance_based_bw(void *_a, void *_b){
 	if (d < 0)
 		d = -d;
 	return 4000-100*d;
+}
+
+static inline int share_metric(struct node *n, void *data){
+	struct node *c = (struct node *)data;
+	double bw = distance_based_bw(n->user_data, c->user_data);
+	double total = n->total_bwupbound[0]+bw;
+	double max = n->maximum_bandwidth[0];
+	if (total > max)
+		return bw*max/total;
+	return bw;
 }
 
 static inline double distance_type_based_bw(void *_a, void *_b){

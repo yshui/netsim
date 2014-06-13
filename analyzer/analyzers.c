@@ -138,13 +138,17 @@ void lnode_finish(void *d){
 
 void print_speed(struct list_head *h, int dir){
 	struct speed_rec *sr, *psr = NULL;
+	double last_time = 0;
 	list_for_each_entry_reverse(sr, h, srecs[dir]){
-		if (psr)
-			printf("%lf %lf\n", sr->time, psr->speed);
-		else
-			printf("%lf 0\n", sr->time);
-		printf("%lf %lf\n", sr->time, sr->speed);
-		psr = sr;
+		if (sr->time > last_time) {
+			if (psr)
+				printf("%lf %lf\n", sr->time, psr->speed);
+			else
+				printf("%lf 0\n", sr->time);
+			last_time = sr->time;
+			psr = sr;
+			printf("%lf %lf\n", sr->time, sr->speed);
+		}
 	}
 }
 
@@ -372,11 +376,66 @@ void cldol_finish(void *d){
 	}
 }
 
+void *sc_init(int argc, const char **argv){
+	struct cldol *d = talloc(1, struct cldol);
+	INIT_LIST_HEAD(&d->srs);
+	return d;
+}
+
+void sc_next_record(void *d, struct record *r){
+	struct cldol *x = d;
+	node_tracker(&x->nh, r);
+	if (r->major == 0 && r->minor == R_NODE_STATE) {
+		struct state_record *sr = talloc(1, struct state_record);
+		struct node *n;
+		HASH_FIND_INT(x->nh, &r->id, n);
+		assert(n);
+		sr->n = n;
+		sr->time = r->time;
+		sr->new_state = r->a.u8;
+		list_add(&sr->srs, &x->srs);
+	}
+}
+
+void sc_finish(void *d){
+	struct state_record *sr;
+	struct cldol *x = d;
+	int stale = 0;
+	double last_time = 0;
+	bool changed = false;
+	list_for_each_entry_reverse(sr, &x->srs, srs){
+		if (sr->n->type != CLNT)
+			continue;
+		if (sr->n->tmp_state < 0) {
+			if (sr->new_state == N_STALE) {
+				stale++;
+				changed = true;
+			}
+		}else if (sr->n->tmp_state != sr->new_state) {
+			if (sr->new_state == N_STALE) {
+				stale++;
+				changed = true;
+			} else if (sr->n->tmp_state == N_STALE) {
+				stale--;
+				changed = true;
+			}
+		}
+//		fprintf(stderr, "%s %s\n", strstate(sr->n->tmp_state), strstate(sr->new_state));
+		sr->n->tmp_state = sr->new_state;
+		if (changed && sr->time > last_time+eps) {
+			printf("%lf %d\n", sr->time, stale);
+			changed = false;
+		}
+		last_time = sr->time;
+	}
+}
+
 struct analyzer analyzer_table[] = {
 	{"test", NULL, test_next_record, NULL},
 	{"list_nodes", lnode_init, lnode_next_record, lnode_finish},
 	{"single_node_speed", n1spd_init, n1spd_next_record, n1spd_finish},
 	{"node_type_speed", ntspd_init, ntspd_next_record, ntspd_finish},
 	{"online_cloud", cldol_init, cldol_next_record, cldol_finish},
+	{"stale_client", sc_init, sc_next_record, sc_finish},
 	{NULL, NULL, NULL},
 };

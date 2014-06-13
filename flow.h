@@ -10,9 +10,6 @@ struct spd_event {
 	struct list_head spd_evs;
 };
 
-double bwspread(struct flow *c, double amount, int dir,
-		int close, struct sim_state *s);
-
 void flow_close(struct flow *c, struct sim_state *s);
 
 struct flow *flow_create(struct node *src, struct node *dst,
@@ -35,4 +32,10 @@ is_connected(struct node *src, struct node *dst){
 	HASH_FIND(hh2, src->outs, &dst->node_id, sizeof(dst->node_id), tf);
 	assert(!tf || tf->peer[1] == dst);
 	return tf != NULL;
+}
+
+static inline double get_share(struct flow *f, int dir){
+	struct node *n = f->peer[dir];
+	double total = n->total_bwupbound[dir], max = n->maximum_bandwidth[dir];
+	return total > max ? f->bwupbound*max/total : f->bwupbound;
 }

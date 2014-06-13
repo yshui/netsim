@@ -45,9 +45,14 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 		event_add(f->drain, s);
 	} else if (drain_time+s->now < srng->producer->done->time &&
 		 sgrow < fbw) {
-		//sgrow == fbw would be fine
-		//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
-		f->drain->time = s->now+drain_time;
+		if (fequ(srng->len, drng_start))
+			//Generate throttle right now
+			f->drain->time = s->now;
+		else
+			//Not Already throttled
+			//sgrow == fbw would be fine
+			//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
+			f->drain->time = s->now+drain_time;
 		f->drain->type = FLOW_SPEED_THROTTLE;
 		event_add(f->drain, s);
 	}

@@ -8,7 +8,7 @@
 
 //From: https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
 
-double gaussian_noise(double variance, double mean) {
+static inline double gaussian_noise(double variance, double mean) {
 	static bool has_spare = false;
 	static double rand1, rand2;
 
@@ -26,4 +26,11 @@ double gaussian_noise(double variance, double mean) {
 	rand2 = (random()/((double)RAND_MAX))*TWO_PI;
 
 	return sqrt(variance*rand1)*cos(rand2)+mean;
+}
+
+double gaussian_noise_nz(double variance, double mean) {
+	double tmp = gaussian_noise(variance*variance, mean);
+	if (tmp < 0)
+		return 0;
+	return tmp;
 }

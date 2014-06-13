@@ -7,9 +7,9 @@
 #include "record.h"
 
 struct resource_model rrm[] = {
-	{0.2, 15, 0, 300, 0},
-	{0.3, 60, 20, 300, 10},
-	{0.5, 5, 0, 300, 10},
+	{0.2, 900, 3, 2000, 100, 3600, 1800},
+	{0.3, 3600, 20, 2400, 0, 14400, 1200},
+	{0.5, 300, 2, 2000, 500, 1200, 60},
 };
 
 struct p2p_data {
@@ -82,7 +82,8 @@ void p2p_read_config(struct p2p_data *d){
 	fscanf(cfg, SKIPd, &d->end_simulation);
 	fclose(cfg);
 
-	d->d.push_metric = d->d.fetch_metric = distance_metric;
+	d->d.push_metric = distance_metric;
+	d->d.fetch_metric = share_metric;
 	client_play_func = d->client_new_play ? client_new_play2 : client_new_play1;
 	cloud_new_rsrc_func = new_resource_handler1;
 
@@ -122,8 +123,6 @@ int p2p_init(struct sim_state *s){
 	s->bwcalc = distance_based_bw;
 
 	struct def_sim *ds = s->user_data;
-	ds->tvar = 20;
-	ds->tm = 1800;
 	int i;
 	for(i = 1; i < nrm; i++) {
 		rrm[i].prob += rrm[i-1].prob;
@@ -164,7 +163,13 @@ int p2p_init(struct sim_state *s){
 		d->time_zone = 24*i/pd->nclnt;
 		d->lowwm = 0;
 		d->highwm = 2500;
-		client_next_event(n, s);
+		//Randomize first event
+		struct user_event *ue = talloc(1, struct user_event);
+		ue->type = NEW_CONNECTION;
+		ue->data = n;
+		struct event *e = event_new(gaussian_noise_nz(900, 3600), USER, ue);
+		log_info("CLNT %lf\n", e->time);
+		event_add(e, s);
 	}
 
 	sim_register_handler(FLOW_DONE, HNDR_USER, p2p_done, s);

@@ -31,15 +31,8 @@ queue_speed_event(struct flow *f, int dir,
 #define min(a,b) ((a)<(b)?(a):(b))
 #define max(a,b) ((a)>(b)?(a):(b))
 
-static inline double get_share(struct flow *f, int dir){
-	struct node *n = f->peer[dir];
-	double total = n->total_bwupbound[dir], max = n->maximum_bandwidth[dir];
-	double used = n->bandwidth_usage[dir];
-	return total > max ? f->bwupbound*max/total : f->bwupbound;
-}
-
 //Return the actual amount changed.
-double bwspread(struct flow *f, double amount, int dir,
+static inline double bwspread(struct flow *f, double amount, int dir,
 			      int close, struct sim_state *s){
 	//Negative amount is always fulfilled (assuming the amount is sane, i.e.
 	//-amount < c->speed[dir]), while positive amount is not.
@@ -108,6 +101,7 @@ double bwspread(struct flow *f, double amount, int dir,
 			 max, total+f->bwupbound);
 	}
 
+	//From this point on, bandwidth_usage will be recalculated
 	double spread_amount = amount;
 	if (amount > -eps) {
 		if (used+amount < max+eps) {
@@ -118,14 +112,8 @@ double bwspread(struct flow *f, double amount, int dir,
 			return amount;
 		} else  {
 			log_debug("used(%lf) < max(%lf)\n", used, max);
-			n->bandwidth_usage[dir] = max;
 			spread_amount = amount-max+used;
-			write_usage(dir, n, s);
 		}
-	} else if (dir == P_RCV) {
-		//dir == P_RCV, we can't change speed right away
-		//so we decrease the usage
-		n->bandwidth_usage[dir] += amount;
 	}
 
 	/* Gather/Spread the amount needed */
@@ -152,16 +140,18 @@ double bwspread(struct flow *f, double amount, int dir,
 	log_debug("e = %lf\n", e);
 
 	if (amount < eps && -amount > e) {
-		//Even we increase other connections' speed to their limit,
+		//Even if we increase other connections' speed to their limit,
 		//there are still free speed left.
 		log_debug("amount(%lf) < 0, e < -amount, new amount: %lf\n", amount, -e);
-		n->bandwidth_usage[dir] += amount+e;
-		write_usage(dir, n, s);
 		amount = -e;
 	}
+
+	double new_use = 0;
 	list_for_each_entry(nf, h, conns[dir]){
-		if (nf == f)
+		if (nf == f) {
+			new_use += f->speed[dir];
 			continue;
+		}
 		double lshare = nf->bwupbound*max/total;
 		double delta;
 		if (amount < eps) {
@@ -172,15 +162,13 @@ double bwspread(struct flow *f, double amount, int dir,
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare,
 					 nf->speed[dir], nf->speed[dir]-amount*delta/e);
 				double new_speed = nf->speed[dir]-amount*delta/e;
-				if (dir == P_SND)
+				if (dir == P_SND) {
 					//The rcv speed can't increase by itself.
 					nf->speed[dir] = new_speed;
-				else
+				} else
 					log_debug("dir == P_RCV, don't increase speed, notify the other end only.\n");
 				//queue speed increase event to the other end
 				queue_speed_event(nf, !dir, new_speed, s);
-				//Update ranges
-				range_calc_and_requeue_events(nf, s);
 			}else
 				log_debug("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
@@ -195,13 +183,17 @@ double bwspread(struct flow *f, double amount, int dir,
 				//e > spread_amount is impossible, otherwise this
 				//connection's speed would exceed its share.
 				//Update ranges
-				range_calc_and_requeue_events(nf, s);
+				if (dir == P_RCV)
+					range_calc_and_requeue_events(nf, s);
 			}else
 				log_debug("Connection (%d->%d) share: %lf, now: %lf, not changing\n",
 					 nf->peer[0]->node_id, nf->peer[1]->node_id, lshare, nf->speed[dir]);
 		}
+		new_use += nf->speed[dir];
 	}
-	log_debug("bwspread done\n");
+	n->bandwidth_usage[dir] = new_use;
+	write_usage(dir, n, s);
+	log_debug("bwspread done, new_use %lf\n", new_use);
 	return spread_amount;
 }
 
@@ -362,6 +354,8 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	double delta = se->speed-f->speed[se->type];
 
 	bwspread(f, delta, se->type, 0, s);
+	assert(_conn_fsck(f->peer[0]));
+	assert(_conn_fsck(f->peer[1]));
 
 	list_del(&se->spd_evs);
 

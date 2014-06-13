@@ -12,7 +12,7 @@ void next_resource_event(struct sim_state *s){
 	double r1 = random()/((double)RAND_MAX);
 	struct skip_list_head *h = skip_list_find_ge(&ds->rms, &r1, resource_model_cmp);
 	struct resource_model *r = skip_list_entry(h, struct resource_model, models);
-	double time = gaussian_noise(ds->tvar, ds->tm);
+	double time = gaussian_noise_nz(r->tvar, r->tm);
 	struct user_event *ue = talloc(1, struct user_event);
 	ue->type = NEW_RESOURCE;
 	ue->data = r;
@@ -22,10 +22,11 @@ void next_resource_event(struct sim_state *s){
 }
 
 id_t new_resource(struct resource_model *r, struct sim_state *s){
+	log_info("[%lf] creating new resource\n", s->now);
 	struct def_sim *ds = s->user_data;
 
-	double rlen = gaussian_noise(r->lvar, r->lm);
-	double rbr = gaussian_noise(r->brvar, r->brm);
+	double rlen = gaussian_noise_nz(r->lvar, r->lm);
+	double rbr = gaussian_noise_nz(r->brvar, r->brm);
 	struct resource_entry *re = talloc(1, struct resource_entry);
 	re->ctime = s->now;
 

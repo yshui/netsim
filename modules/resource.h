@@ -9,6 +9,8 @@ struct resource_model {
 	double prob, lm, lvar;
 	//Mean and variance of bit rate
 	double brm, brvar;
+	//Interval between appearance
+	double tm, tvar;
 	struct skip_list_head models;
 };
 
