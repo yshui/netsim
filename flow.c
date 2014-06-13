@@ -108,6 +108,7 @@ double bwspread(struct flow *f, double amount, int dir,
 			 max, total+f->bwupbound);
 	}
 
+	double spread_amount = amount;
 	if (amount > -eps) {
 		if (used+amount < max+eps) {
 			log_debug("amount(%lf) > 0, used+amount(%lf) < max, bwspread stop\n", amount, used+amount);
@@ -117,16 +118,18 @@ double bwspread(struct flow *f, double amount, int dir,
 			return amount;
 		} else  {
 			log_debug("used(%lf) < max(%lf)\n", used, max);
-			n->bandwidth_usage[dir] = n->maximum_bandwidth[dir];
+			n->bandwidth_usage[dir] = max;
+			spread_amount = amount-max+used;
 			write_usage(dir, n, s);
 		}
+	} else if (dir == P_RCV) {
+		//dir == P_RCV, we can't change speed right away
+		//so we decrease the usage
+		n->bandwidth_usage[dir] += amount;
 	}
 
 	/* Gather/Spread the amount needed */
 	struct flow *nf;
-	double spread_amount = amount;
-	if (amount > eps && used < max)
-		spread_amount = amount-max+used;
 	double e = 0;
 	list_for_each_entry(nf, h, conns[dir]){
 		if (nf == f)
@@ -202,6 +205,7 @@ double bwspread(struct flow *f, double amount, int dir,
 	return spread_amount;
 }
 
+#ifndef NDEBUG
 //For debug only
 static bool _conn_fsck(struct node *src){
 	struct flow *tf;
@@ -218,14 +222,26 @@ static bool _conn_fsck(struct node *src){
 	}
 	assert(fequ(tbw, src->total_bwupbound[0]));
 	assert(fequ(cnt, src->bandwidth_usage[0]));
-	return fequ(cnt, src->bandwidth_usage[0]);
+	cnt = 0;
+	tbw = 0;
+	list_for_each_entry_reverse(tf, &src->conns[1], conns[1]){
+		assert(tf->peer[1] == src);
+		struct node *dst = tf->peer[0];
+		cnt += tf->speed[1];
+		tbw += tf->bwupbound;
+	}
+	assert(fequ(tbw, src->total_bwupbound[1]));
+	assert(fequ(cnt, src->bandwidth_usage[1]));
+	return true;
 }
+#endif
 
 //outbound/src/snd = [0], inbound/dst/rcv = [1]
 //dir = who initiate the close, 0 = the src, 1 = the dst
 //Close connection in both direction
 void flow_close(struct flow *f, struct sim_state *s){
 	assert(_conn_fsck(f->peer[0]));
+	assert(_conn_fsck(f->peer[1]));
 	assert(is_connected(f->peer[0], f->peer[1]));
 	//Spread the bandwidth to remaining connections.
 	f->peer[0]->total_bwupbound[0] -= f->bwupbound;
@@ -234,6 +250,8 @@ void flow_close(struct flow *f, struct sim_state *s){
 	bwspread(f, f->speed[1], 1, 1, s);
 	list_del(&f->conns[0]);
 	list_del(&f->conns[1]);
+	assert(_conn_fsck(f->peer[0]));
+	assert(_conn_fsck(f->peer[1]));
 	log_debug("Remove flow %d %p\n", f->flow_id, f);
 	HASH_DEL(s->flows, f);
 	HASH_DELETE(hh2, f->peer[0]->outs, f);
@@ -277,7 +295,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 //connection creation is always initiated by src
 struct flow *flow_create(struct node *src, struct node *dst,
 				     struct sim_state *s){
-	_conn_fsck(src);
+	assert(_conn_fsck(src));
 	//Don't create multiple flow between same pair of nodes
 	assert(!is_connected(src, dst));
 	struct flow *f;
@@ -298,6 +316,8 @@ struct flow *flow_create(struct node *src, struct node *dst,
 
 	double spd0 = get_share(f, 0);
 	bwspread(f, spd0, 0, 0, s);
+	assert(_conn_fsck(f->peer[0]));
+	assert(_conn_fsck(f->peer[1]));
 
 	queue_speed_event(f, P_RCV, f->speed[0], s);
 
@@ -322,6 +342,8 @@ struct flow *flow_create(struct node *src, struct node *dst,
 void handle_speed_change(struct event *e, struct sim_state *s){
 	struct spd_event *se = e->data;
 	struct flow *f = se->f;
+	assert(_conn_fsck(f->peer[0]));
+	assert(_conn_fsck(f->peer[1]));
 
 	//Ignore events that are queued before our last event can reach the
 	//other end.
