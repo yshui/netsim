@@ -32,7 +32,7 @@ queue_speed_event(struct flow *f, int dir,
 #define max(a,b) ((a)>(b)?(a):(b))
 
 //Return the actual amount changed.
-static inline double bwspread(struct flow *f, double amount, int dir,
+static inline void bwspread(struct flow *f, double amount, int dir,
 			      int close, struct sim_state *s){
 	//Negative amount is always fulfilled (assuming the amount is sane, i.e.
 	//-amount < c->speed[dir]), while positive amount is not.
@@ -70,7 +70,7 @@ static inline double bwspread(struct flow *f, double amount, int dir,
 			//is not possible
 			log_debug("Connection's speed already exceeds its share, bwspread stop\n");
 			queue_speed_event(f, !dir, f->speed[dir], s);
-			return 0;
+			return;
 		}
 		queue_speed_event(f, !dir, share, s);
 		amount = share-f->speed[dir];
@@ -79,10 +79,17 @@ static inline double bwspread(struct flow *f, double amount, int dir,
 
 	if (amount > -eps && amount < eps) {
 		log_debug("amount = %lf, nothing to do.\n", amount);
-		return 0;
+		return;
 	}
 
 	f->speed[dir] += amount;
+	if (amount < eps && amount > -16) {
+		n->bandwidth_usage[dir] += amount;
+		write_usage(dir, n, s);
+		//If the decrease amount is too small, we don't spread
+		return;
+	}
+
 	/* Special Cases */
 	if (total < max+eps) {
 		if (!close || total+f->bwupbound < max+eps) {
@@ -94,7 +101,7 @@ static inline double bwspread(struct flow *f, double amount, int dir,
 			//spread.
 			n->bandwidth_usage[dir] += amount;
 			write_usage(dir, n, s);
-			return amount;
+			return;
 		}
 		log_debug("total(%lf) <= max(%lf), but closing, and total+"
 			 "bwupbound(%lf) > max, bwspread continue\n", total,
@@ -109,7 +116,7 @@ static inline double bwspread(struct flow *f, double amount, int dir,
 			//There're enough free bandwidth
 			n->bandwidth_usage[dir] += amount;
 			write_usage(dir, n, s);
-			return amount;
+			return;
 		} else  {
 			log_debug("used(%lf) < max(%lf)\n", used, max);
 			spread_amount = amount-max+used;
@@ -194,7 +201,7 @@ static inline double bwspread(struct flow *f, double amount, int dir,
 	n->bandwidth_usage[dir] = new_use;
 	write_usage(dir, n, s);
 	log_debug("bwspread done, new_use %lf\n", new_use);
-	return spread_amount;
+	return;
 }
 
 #ifndef NDEBUG

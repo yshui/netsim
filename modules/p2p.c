@@ -18,6 +18,8 @@ struct p2p_data {
 	int client_new_play;
 	int new_connection_handler;
 	int smart_cloud;
+	int use_client;
+	int metric;
 	int end_simulation;
 	int nsvr, ncld, nclnt;
 };
@@ -38,7 +40,7 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 			if (!ds->client_new_play)
 				client_new_play1(rid, ue->data, s);
 			else
-				client_new_play2(rid, ue->data, true, s);
+				client_new_play2(rid, ue->data, ds->use_client, s);
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
@@ -76,6 +78,8 @@ void p2p_read_config(struct p2p_data *d){
 	fscanf(cfg, SKIPd, &d->client_new_play);
 	fscanf(cfg, SKIPd, &d->smart_cloud);
 	fscanf(cfg, SKIPd, &d->new_connection_handler);
+	fscanf(cfg, SKIPd, &d->use_client);
+	fscanf(cfg, SKIPd, &d->metric);
 	//Always assume uniformed distribution of cloud, sever and client
 	//over timezones.
 	fscanf(cfg, SKIPd, &d->nsvr);
@@ -85,7 +89,10 @@ void p2p_read_config(struct p2p_data *d){
 	fclose(cfg);
 
 	d->d.push_metric = distance_metric;
-	d->d.fetch_metric = distance_metric;//share_metric;
+	if (d->metric)
+		d->d.fetch_metric = share_metric;
+	else
+		d->d.fetch_metric = distance_metric;
 	cloud_new_rsrc_func = new_resource_handler1;
 
 	switch(d->new_resource_handler) {
@@ -134,7 +141,7 @@ int p2p_init(struct sim_state *s){
 		struct node *n = p2p_new_server(s);
 		struct def_user *d = n->user_data;
 		n->maximum_bandwidth[0] = 160000;
-		n->maximum_bandwidth[1] = 320000;
+		n->maximum_bandwidth[1] = 160000;
 		d->time_zone = 24*i/pd->nsvr;
 	}
 
@@ -142,8 +149,8 @@ int p2p_init(struct sim_state *s){
 		struct node *cn = p2p_new_cloud(s);
 		struct def_user *d = cn->user_data;
 		cloud_online(cn, s);
-		cn->maximum_bandwidth[0] = 80000;
-		cn->maximum_bandwidth[1] = 80000;
+		cn->maximum_bandwidth[0] = 120000;
+		cn->maximum_bandwidth[1] = 120000;
 		d->time_zone = 24*i/pd->ncld;
 		if (!pd->smart_cloud)
 			//Cloud is always online if not smart_cloud
@@ -159,8 +166,8 @@ int p2p_init(struct sim_state *s){
 		struct node *n = p2p_new_node(s);
 		struct def_user *d = n->user_data;
 		n->state = N_IDLE;
-		n->maximum_bandwidth[0] = 40000;
-		n->maximum_bandwidth[1] = 8000;
+		n->maximum_bandwidth[0] = 8000;
+		n->maximum_bandwidth[1] = 40000;
 		d->time_zone = 24*i/pd->nclnt;
 		d->lowwm = 0;
 		d->highwm = 25000;

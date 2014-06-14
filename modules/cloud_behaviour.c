@@ -19,6 +19,8 @@ void new_resource_handler1(id_t rid, bool delay, struct sim_state *s){
 		if (cnt <= 0)
 			cnt = 1;
 		server_picker_opt1(cn->n, ds->fetch_metric, &cnt, cn->n, s);
+		if (!cnt)
+			continue;
 		assert(cnt);
 		struct resource *r = store_get(ds->eval_table[0].n->store, rid);
 		int split = r->len/cnt;

@@ -54,7 +54,7 @@ static inline bool _event_fsck(struct sim_state *s){
 #endif
 
 static inline void event_add(struct event *e, struct sim_state *s){
-	assert(_event_fsck(s));
+	//assert(_event_fsck(s));
 	if (!e || e->active)
 		return;
 	if (e->time < s->now) {
