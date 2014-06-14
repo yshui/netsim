@@ -83,7 +83,7 @@ static inline void bwspread(struct flow *f, double amount, int dir,
 	}
 
 	f->speed[dir] += amount;
-	if (amount < eps && amount > -16) {
+	if (amount < eps && amount > -32) {
 		n->bandwidth_usage[dir] += amount;
 		write_usage(dir, n, s);
 		//If the decrease amount is too small, we don't spread
