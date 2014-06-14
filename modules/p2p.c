@@ -7,9 +7,9 @@
 #include "record.h"
 
 struct resource_model rrm[] = {
-	{0.2, 900, 3, 2000, 100, 3600, 1800},
-	{0.3, 3600, 20, 2400, 0, 14400, 1200},
-	{0.5, 300, 2, 2000, 500, 1200, 60},
+	{0.2, 900, 3, 2000, 100, 900, 450},
+	{0.3, 3600, 20, 2400, 0, 3600, 300},
+	{0.5, 300, 2, 2000, 500, 300, 60},
 };
 
 struct p2p_data {
@@ -24,7 +24,6 @@ struct p2p_data {
 
 const int nrm = 3;
 
-static void (*client_play_func)(id_t, struct node *, struct sim_state *);
 static void (*cloud_new_rsrc_func)(id_t, bool, struct sim_state *s);
 
 void p2p_user_event(struct event *e, struct sim_state *s){
@@ -36,7 +35,10 @@ void p2p_user_event(struct event *e, struct sim_state *s){
 	switch(ue->type) {
 		case NEW_CONNECTION:
 			rid = resource_picker(s);
-			client_play_func(rid, ue->data, s);
+			if (!ds->client_new_play)
+				client_new_play1(rid, ue->data, s);
+			else
+				client_new_play2(rid, ue->data, true, s);
 			break;
 		case NEW_RESOURCE:
 			rid = new_resource_random(s);
@@ -83,8 +85,7 @@ void p2p_read_config(struct p2p_data *d){
 	fclose(cfg);
 
 	d->d.push_metric = distance_metric;
-	d->d.fetch_metric = share_metric;
-	client_play_func = d->client_new_play ? client_new_play2 : client_new_play1;
+	d->d.fetch_metric = distance_metric;//share_metric;
 	cloud_new_rsrc_func = new_resource_handler1;
 
 	switch(d->new_resource_handler) {
@@ -162,7 +163,7 @@ int p2p_init(struct sim_state *s){
 		n->maximum_bandwidth[1] = 8000;
 		d->time_zone = 24*i/pd->nclnt;
 		d->lowwm = 0;
-		d->highwm = 2500;
+		d->highwm = 25000;
 		//Randomize first event
 		struct user_event *ue = talloc(1, struct user_event);
 		ue->type = NEW_CONNECTION;

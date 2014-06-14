@@ -18,8 +18,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 		return;
 	event_remove(f->done);
 	event_remove(f->drain);
-	range_update(f->srng, s);
-	range_update(f->drng, s);
+	flow_range_update(f, s);
 	if (!f->drain)
 		f->drain = event_new(0, 0, f);
 	if (!f->done)
@@ -43,18 +42,22 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 		f->drain->time = s->now+(srng->len-drng_start)/fbw;
 		f->drain->type = FLOW_DRAIN;
 		event_add(f->drain, s);
-	} else if (drain_time+s->now < srng->producer->done->time &&
-		 sgrow < fbw) {
-		if (fequ(srng->len, drng_start))
+	} else if (!is_later_than(drain_time+s->now, srng->producer->done) &&
+		   sgrow < fbw) {
+		f->drain->type = FLOW_SPEED_THROTTLE;
+		if (fequ(srng->len, drng_start)) {
 			//Generate throttle right now
-			f->drain->time = s->now;
-		else
+			if (!fequ(sgrow, fbw)) {
+				f->drain->time = s->now;
+				event_add(f->drain, s);
+			}
+		} else {
 			//Not Already throttled
 			//sgrow == fbw would be fine
 			//Otherwise generate a SPEED_THROTTLE, even if srng->grow == 0
 			f->drain->time = s->now+drain_time;
-		f->drain->type = FLOW_SPEED_THROTTLE;
-		event_add(f->drain, s);
+			event_add(f->drain, s);
+		}
 	}
 
 	assert(drng->producer == f);
@@ -67,7 +70,7 @@ void range_calc_and_requeue_events(struct flow *f, struct sim_state *s){
 	double done_time = (npos-drng->start-drng->len)/(double)fbw;
 	//Less or equal to here, we always handle done event first. Since when
 	//its done, we don't need to deal with drain or throttle.
-	if (s->now+done_time < f->drain->time+eps || !f->drain->active) {
+	if (!is_later_than(s->now+done_time, f->drain)) {
 		event_remove(f->drain);
 		f->done->time = s->now+done_time;
 		f->done->type = FLOW_DONE;
@@ -85,6 +88,7 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 
 	struct range *nrng = skip_list_entry(nh, struct range, ranges);
 	assert(fequ(rng->start+rng->len, nrng->start));
+	assert(fequ(s->now, rng->last_update));
 	//Update next range
 
 	rng->len = nrng->start-rng->start+nrng->len;
@@ -106,15 +110,15 @@ void range_merge_with_next(struct range *rng, struct sim_state *s){
 	free(nrng);
 
 	struct flow *f;
+	_range_update(rng, s);
 	list_for_each_entry(f, &rng->consumers, consumers) {
-		range_update(f->drng, s);
+		_range_update(f->drng, s);
 		range_calc_and_requeue_events(f, s);
 	}
 
 	if (rng->producer) {
 		//Add to consumers
-		range_update(rng->producer->srng, s);
-		range_update(rng->producer->drng, s);
+		_range_update(rng->producer->srng, s);
 		range_calc_and_requeue_events(rng->producer, s);
 	}
 }

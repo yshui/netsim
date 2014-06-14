@@ -77,7 +77,7 @@ static inline struct range *node_new_range(struct node *n, int resource_id,
 	return resource_new_range(r, start, len);
 }
 
-static inline void range_update(struct range *r, struct sim_state *s){
+static inline void _range_update(struct range *r, struct sim_state *s){
 	//Kaham summation algo
 	if (s->now == r->last_update)
 		return;
@@ -93,6 +93,24 @@ static inline void range_update(struct range *r, struct sim_state *s){
 	r->lenc = (t-r->len)-delta;
 	r->len = t;
 	r->last_update = s->now;
+#ifndef NDEBUG
+	//Predict source range len
+	double pslen = 0;
+	if (r->producer->srng->producer) {
+		struct range *tmp = r->producer->srng;
+		delta = tmp->producer->speed[1]*(s->now-tmp->last_update);
+		pslen = tmp->len+delta;
+	}else
+		pslen = r->producer->srng->len;
+	assert(r->start+r->len < r->producer->srng->start+pslen+eps);
+#endif
+}
+
+static inline void flow_range_update(struct flow *f, struct sim_state *s){
+	if (!f)
+		return;
+	_range_update(f->srng, s);
+	_range_update(f->drng, s);
 }
 
 static inline void range_freep(struct skip_list_head *h){

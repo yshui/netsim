@@ -19,7 +19,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 	struct user_event *ue;
 	//Make sure the node state is updated!!
 	assert(d->n->state == d->next_state);
-	range_update(rng, s);
+	_range_update(rng, s);
 	if (d->n->state != N_PLAYING)
 		return;
 
@@ -78,8 +78,8 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 	//water mark. The low water mark will be calculated at
 	//that time
 	if (!f ||
-	    ((!is_active(f->done) || time < f->done->time) &&
-	    (!is_active(f->drain) || time < f->drain->time))) {
+	    (!is_later_than(time, f->done) &&
+	     !is_later_than(time, f->drain))) {
 		ue = d->e->data;
 		d->e->time = time+s->now;
 		ue->type = PAUSE_BUFFERING;
@@ -90,7 +90,7 @@ void client_lowwm_event(struct range *rng, struct sim_state *s){
 }
 
 void client_highwm_event(struct range *rng, struct sim_state *s){
-	range_update(rng, s);
+	_range_update(rng, s);
 	struct node *n = rng->owner->owner;
 	struct def_user *d = n->user_data;
 	struct user_event *ue;
@@ -127,8 +127,8 @@ void client_highwm_event(struct range *rng, struct sim_state *s){
 	time += s->now;
 	struct flow *f = rng->producer;
 	if (!f ||
-	    ((!is_active(f->done) || time < f->done->time) &&
-	    (!is_active(f->drain) || time < f->drain->time))) {
+	    (!is_later_than(time, f->done) &&
+	     !is_later_than(time, f->drain))) {
 		d->e->time = time;
 		ue = d->e->data;
 		ue->type = DONE_BUFFERING;
@@ -345,7 +345,7 @@ server_picker1(struct node *client, struct sim_state *s){
 }
 
 struct node *
-server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s){
+server_picker2(id_t rid, size_t start, struct node *client, bool use_client, struct sim_state *s){
 	//Choose any non-server nodes
 	struct def_sim *ds = s->user_data;
 	struct resource_entry *re = NULL;
@@ -355,7 +355,7 @@ server_picker2(id_t rid, size_t start, struct node *client, struct sim_state *s)
 
 	struct resource_provider *rp, *tmp;
 	HASH_ITER(hh, re->holders, rp, tmp)
-		if (is_resource_usable(rp->r, start, s) &&
+		if (is_resource_usable(rp->r, start, use_client, s) &&
 		    !is_connected(rp->r->owner, client))
 			return rp->r->owner;
 	return NULL;
@@ -386,7 +386,7 @@ void client_new_play1(id_t rid, struct node *n, struct sim_state *s){
 	client_start_play(n, rid, s);
 }
 
-void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
+void client_new_play2(id_t rid, struct node *n, bool use_client, struct sim_state *s){
 	//Keep make new connection until usage > 0.9
 	struct resource *ur = store_get(n->store, rid);
 	if (ur) {
@@ -394,7 +394,7 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 		return;
 	}
 	struct def_sim *ds = s->user_data;
-	struct node *cand = server_picker_opt2(rid, 0, n, ds->fetch_metric, n, s);
+	struct node *cand = server_picker_opt2(rid, 0, n, ds->fetch_metric, n, use_client, s);
 	if (!cand){
 		//No candidates, we try play1
 		client_new_play1(rid, n, s);
@@ -415,7 +415,7 @@ void client_new_play2(id_t rid, struct node *n, struct sim_state *s){
 		int i;
 		for (i = 0; i < (1<<depth); i++) {
 			int idx = (i<<1)+1;
-			cand = server_picker_opt2(rid, strip*idx, n, ds->fetch_metric, n, s);
+			cand = server_picker_opt2(rid, strip*idx, n, ds->fetch_metric, n, use_client, s);
 			if (!cand) {
 				stop = true;
 				break;

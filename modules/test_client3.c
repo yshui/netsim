@@ -39,7 +39,7 @@ void test_user_event(struct event *e, struct sim_state *s){
 	if (ue->type == NEW_CONNECTION) {
 		struct node *cand = server_picker1(c2, s);
 		client_new_connection(rid, 0, cand, c2, s);
-		cand = server_picker2(rid, 1000, c2, s);
+		cand = server_picker2(rid, 1000, c2, true, s);
 		client_new_connection(rid, 1000, cand, c2, s);
 		client_start_play(c2, rid, s);
 		return;

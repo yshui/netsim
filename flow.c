@@ -238,6 +238,7 @@ void flow_close(struct flow *f, struct sim_state *s){
 	//Spread the bandwidth to remaining connections.
 	f->peer[0]->total_bwupbound[0] -= f->bwupbound;
 	f->peer[1]->total_bwupbound[1] -= f->bwupbound;
+	flow_range_update(f, s);
 	bwspread(f, f->speed[0], 0, 1, s);
 	bwspread(f, f->speed[1], 1, 1, s);
 	list_del(&f->conns[0]);
@@ -314,12 +315,11 @@ struct flow *flow_create(struct node *src, struct node *dst,
 	queue_speed_event(f, P_RCV, f->speed[0], s);
 
 	//Insert into connection hash
-	id_t rand = random();
 	struct flow *of = NULL;
 	do {
+		f->flow_id = random();
 		HASH_FIND_INT(s->flows, &rand, of);
 	}while(of);
-	f->flow_id = rand;
 	HASH_ADD_INT(s->flows, flow_id, f);
 
 	//Log connection creation
@@ -345,11 +345,9 @@ void handle_speed_change(struct event *e, struct sim_state *s){
 	//if (e->qtime < se->c->pending_event[se->type])
 	//	return;
 
-	if (se->type == P_RCV) {
+	if (se->type == P_RCV)
 		//Update the range before the speed is changed
-		range_update(f->drng, s);
-		range_update(f->srng, s);
-	}
+		flow_range_update(f, s);
 
 	double delta = se->speed-f->speed[se->type];
 
@@ -386,11 +384,11 @@ void speed_change_free(struct event *e, struct sim_state *s){
 void flow_done_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
 	assert(_conn_fsck(f->peer[0]));
-	range_update(f->drng, s);
+	flow_range_update(f, s);
 	struct skip_list_head *next = f->drng->ranges.next[0];
 	if (next) {
 		struct range *nrng = skip_list_entry(next, struct range, ranges);
-		range_update(nrng, s);
+		flow_range_update(nrng->producer, s);
 		range_merge_with_next(f->drng, s);
 	}
 }
@@ -402,16 +400,15 @@ void flow_done_cleaner(struct event *e, struct sim_state *s){
 
 void flow_throttle_handler(struct event *e, struct sim_state *s){
 	struct flow *f = (struct flow *)e->data;
-	range_update(f->drng, s);
 	//If f->srng->producer == NULL, this should be a FLOW_DONE event
 	assert(f->srng->producer);
 	double delta = f->srng->producer->speed[1]-f->speed[0];
-	assert(delta < 0);
-	range_update(f->drng, s);
-	range_update(f->srng, s);
+	assert(delta < eps);
+	flow_range_update(f, s);
 	//Speed throttle don't have delay, this is a hack
 	bwspread(f, delta, P_SND, 0, s);
 	delta = f->srng->producer->speed[1]-f->speed[1];
 	bwspread(f, delta, P_RCV, 0, s);
 	range_calc_and_requeue_events(f, s);
+	range_update_consumer_events(f->drng, s);
 }

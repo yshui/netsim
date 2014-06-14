@@ -78,3 +78,11 @@ static inline bool is_active(struct event *e){
 		return false;
 	return e->active;
 }
+
+static inline bool is_later_than(double time, struct event *b){
+	if (!b->active)
+		return false;
+	if (time > b->time+eps)
+		return true;
+	return false;
+}
