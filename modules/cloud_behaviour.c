@@ -197,20 +197,8 @@ void cloud_next_hour_handler(struct sim_state *s){
 			if (r)
 				//Already have this resource, or already downloading
 				continue;
-			struct server *sn;
-			bool flag = false;
-			list_for_each_entry(sn, &ds->servers, servers){
-				if (is_connected(sn->n, cn->n))
-					continue;
-				if (sn->n->bandwidth_usage[0] < 0.8*sn->n->bandwidth_usage[0]) {
-					flag = true;
-					break;
-				}
-			}
-			if (flag)
-				client_new_connection(re->resource_id, 0, sn->n, cn->n, s);
 			//Count active clouds
-			size_t nowstart = flag ? 32000 : 0; //Skip a bit
+			size_t nowstart = 0; //Skip a bit
 			struct node *cand;
 			do {
 				if (cn->n->total_bwupbound[1] > cn->n->maximum_bandwidth[1])
@@ -221,6 +209,24 @@ void cloud_next_hour_handler(struct sim_state *s){
 				client_new_connection(re->resource_id, nowstart, cand, cn->n, s);
 				nowstart += 32000; //Skip a bit
 			}while(cand);
+			struct server *sn = list_first_entry(&ds->servers, struct server, servers);
+			r = store_get(sn->n->store, re->resource_id);
+			if (nowstart < r->len*3/5) {
+				//Connect to server if nowstart < 60% total length
+				int min = 2147483647;
+				struct node *src = NULL;
+				list_for_each_entry(sn, &ds->servers, servers){
+					if (is_connected(sn->n, cn->n))
+						continue;
+					int eval = ds->fetch_metric(sn->n, cn->n);
+					if (eval < min) {
+						min = eval;
+						src = sn->n;
+					}
+				}
+				if (src)
+					client_new_connection(re->resource_id, r->len*4/5, src, cn->n, s);
+			}
 		}
 	}
 }

@@ -95,7 +95,7 @@ void p2p_read_config(struct p2p_data *d){
 		d->d.fetch_metric = distance_metric;
 	cloud_new_rsrc_func = new_resource_handler1;
 
-	switch(d->new_resource_handler) {
+	switch(d->new_connection_handler) {
 		case 0:
 			d->d.new_conn_cb = NULL;
 			break;
