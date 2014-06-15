@@ -59,7 +59,7 @@ static inline void event_add(struct event *e, struct sim_state *s){
 		return;
 	if (e->time < s->now) {
 		if (e->time < s->now-eps) {
-			log_err("Add event back in time\n");
+			log_err("Add event back in time, e: %lf now: %lf\n", e->time, s->now);
 			abort();
 		}
 		e->time = s->now;

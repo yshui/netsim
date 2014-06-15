@@ -35,7 +35,7 @@ struct resource {
 };
 
 struct store {
-	int total_size; //In Kbits, enough for 4Tbits or 512GBytes
+	size_t total_size; //In Kbits, enough for 4Tbits or 512GBytes
 	struct resource *rsrc_hash;
 };
 
@@ -77,7 +77,7 @@ struct flow {
 	UT_hash_handle hh2;
 	id_t dst_id;
 	//This is a directional flow
-	int start;
+	size_t start;
 	double begin_time;
 	//Done event is when the flow has filled the target range
 	//Drain event is when the flow has drained the source range
@@ -167,7 +167,8 @@ struct sim_state {
 
 	//Record:
 	void *record_tail, *record_head;
-	int record_file_size, record_fd;
+	size_t record_file_size;
+	int record_fd;
 
 	//User provided functions:
 	double (*bwcalc)(void *src, void *dst);

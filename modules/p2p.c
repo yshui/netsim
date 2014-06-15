@@ -7,9 +7,9 @@
 #include "record.h"
 
 struct resource_model rrm[] = {
-	{0.2, 900, 3, 2000, 100, 900, 450},
-	{0.3, 3600, 20, 2400, 0, 3600, 300},
-	{0.5, 300, 2, 2000, 500, 300, 60},
+	{0.2, 900, 3, 2000, 100, 871, 450},
+	{0.3, 3600, 20, 2400, 0, 3791, 300},
+	{0.5, 300, 2, 2000, 500, 337, 60},
 };
 
 struct p2p_data {
@@ -120,6 +120,7 @@ void p2p_done(struct event *e, struct sim_state *s){
 }
 
 int p2p_init(struct sim_state *s){
+	srandom(time(0));
 	init_sim_size(s, 20, sizeof(struct p2p_data));
 
 	struct p2p_data *pd;
@@ -148,7 +149,6 @@ int p2p_init(struct sim_state *s){
 	for(i = 0; i < pd->ncld; i++) {
 		struct node *cn = p2p_new_cloud(s);
 		struct def_user *d = cn->user_data;
-		cloud_online(cn, s);
 		cn->maximum_bandwidth[0] = 120000;
 		cn->maximum_bandwidth[1] = 120000;
 		d->time_zone = 24*i/pd->ncld;

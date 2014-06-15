@@ -37,10 +37,10 @@ void write_record(uint8_t major, uint8_t minor, uint32_t id,
 	uint8_t *new_tail = ((uint8_t *)s->record_tail)+1+1+4+4+2+1+6;
 	if (s->record_file_size+s->record_head <= (void *)new_tail) {
 		size_t old_len = s->record_tail-s->record_head;
-		int ret = ftruncate(s->record_fd, s->record_file_size<<1);
+		int ret = ftruncate64(s->record_fd, s->record_file_size<<1);
 
 		if (ret != 0)
-			log_err("Can't enlarge stat file.");
+			log_err("Can't enlarge stat file: %s", strerror(errno));
 		else{
 			s->record_head = mremap(s->record_head, s->record_file_size,
 						s->record_file_size<<1, MREMAP_MAYMOVE);
@@ -125,7 +125,7 @@ void open_record(const char *filename, int create, struct sim_state *s){
 	int fd = open(filename, O_RDWR, 0644);
 	if (fd < 0) {
 		if (errno == ENOENT && create) {
-			fd = open(filename, O_RDWR|O_CREAT|O_EXCL);
+			fd = open(filename, O_RDWR|O_CREAT|O_EXCL, 0644);
 			if (fd < 0) {
 				log_err("Create stat file failed.");
 				return;

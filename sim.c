@@ -8,7 +8,7 @@
 #include "range.h"
 #include "record.h"
 
-const double eps = 1e-6;
+const double eps = 1e-4;
 
 void sim_send_packet(void *data, int len, struct node *src, struct node *dst,
 		     struct sim_state *s){

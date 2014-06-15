@@ -408,7 +408,7 @@ void client_new_play2(id_t rid, struct node *n, bool use_client, struct sim_stat
 	while(!stop){
 		if (n->total_bwupbound[1] > n->maximum_bandwidth[1])
 			break;
-		if (depth > 5)
+		if (depth > 4)
 			//100 connections is too much
 			break;
 		strip >>= 1;
