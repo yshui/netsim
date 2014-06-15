@@ -193,8 +193,8 @@ static inline int share_metric(struct node *n, void *data){
 	double total = n->total_bwupbound[0]+bw;
 	double max = n->maximum_bandwidth[0];
 	if (total > max)
-		return bw*max/total;
-	return bw;
+		return -bw*max/total;
+	return -bw;
 }
 
 static inline double distance_type_based_bw(void *_a, void *_b){

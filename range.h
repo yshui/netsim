@@ -12,7 +12,7 @@ static inline int range_include_cmp(struct skip_list_head *a, void *_key){
 	struct range *rng = skip_list_entry(a, struct range, ranges);
 	int key = *(int *)_key;
 	if (rng->start <= key) {
-		if (rng->start+rng->len > key)
+		if (rng->start+rng->len >= key)
 			return 0;
 		else
 			return -1;
@@ -45,6 +45,17 @@ range_get_by_start(struct resource *rsrc, int start){
 	struct skip_list_head *s = &rsrc->ranges, *r;
 	struct range *rng, *nrng;
 	r = skip_list_find_le(s, &start, range_start_cmp);
+	rng = skip_list_entry(r, struct range, ranges);
+	if (!r)
+		return NULL;
+	return rng;
+}
+
+static inline struct range *
+range_get_next(struct resource *rsrc, int start){
+	struct skip_list_head *s = &rsrc->ranges, *r;
+	struct range *rng, *nrng;
+	r = skip_list_find_ge(s, &start, range_start_cmp);
 	rng = skip_list_entry(r, struct range, ranges);
 	if (!r)
 		return NULL;

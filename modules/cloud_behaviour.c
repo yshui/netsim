@@ -147,6 +147,34 @@ void cloud_kill(struct node *n, struct sim_state *s){
 	ds->ncld_on--;
 }
 
+static inline struct node *
+find_opt_next(id_t rid, size_t *start, struct node *n, struct sim_state *s){
+	struct cloud_node *cn;
+	struct def_sim *ds = s->user_data;
+	int min = 2147483647;
+	struct node *ret = NULL;
+	list_for_each_entry(cn, &ds->cloud_nodes, cloud_nodes){
+		if (!is_node_usable_relaxed(rid, cn->n, n, s))
+			continue;
+		struct resource *r = store_get(cn->n->store, rid);
+		struct range *rng = range_get_next(r, *start);
+		if (!rng)
+			continue;
+		// Find first range available
+		int opt = ds->fetch_metric(cn->n, n);
+		if (opt < min) {
+			min = opt;
+			ret = cn->n;
+		}
+	}
+	if (!ret)
+		return NULL;
+	struct resource *r = store_get(ret->store, rid);
+	struct range *rng = range_get_next(r, *start);
+	*start = rng->start;
+	return ret;
+}
+
 void cloud_next_hour_handler(struct sim_state *s){
 	struct cloud_node *cn;
 	struct def_sim *ds = s->user_data;
@@ -172,14 +200,27 @@ void cloud_next_hour_handler(struct sim_state *s){
 			struct server *sn;
 			bool flag = false;
 			list_for_each_entry(sn, &ds->servers, servers){
+				if (is_connected(sn->n, cn->n))
+					continue;
 				if (sn->n->bandwidth_usage[0] < 0.8*sn->n->bandwidth_usage[0]) {
 					flag = true;
 					break;
 				}
 			}
-			if (!flag)
-				return;
-			client_new_connection(re->resource_id, 0, sn->n, cn->n, s);
+			if (flag)
+				client_new_connection(re->resource_id, 0, sn->n, cn->n, s);
+			//Count active clouds
+			size_t nowstart = flag ? 32000 : 0; //Skip a bit
+			struct node *cand;
+			do {
+				if (cn->n->total_bwupbound[1] > cn->n->maximum_bandwidth[1])
+					break;
+				cand = find_opt_next(re->resource_id, &nowstart, cn->n, s);
+				if (!cand)
+					break;
+				client_new_connection(re->resource_id, nowstart, cand, cn->n, s);
+				nowstart += 32000; //Skip a bit
+			}while(cand);
 		}
 	}
 }

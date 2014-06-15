@@ -48,6 +48,18 @@ is_node_usable(struct node *n, id_t rid, size_t start, bool client, struct sim_s
 	return is_resource_usable(r, start, client, s);
 }
 
+static inline bool
+is_node_usable_relaxed(id_t rid, struct node *n, struct node *dst, struct sim_state *s){
+	if (is_connected(n, dst))
+		return false;
+	if (n->state == N_OFFLINE || n->state == N_DYING)
+		return false;
+	struct resource *r = store_get(n->store, rid);
+	if (!r)
+		return false;
+	return true;
+}
+
 #define cmp(a, b) ((a)->val-(b)->val)
 def_qselect(eval, struct nv_pair);
 #undef cmp
