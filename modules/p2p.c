@@ -120,7 +120,7 @@ void p2p_done(struct event *e, struct sim_state *s){
 }
 
 int p2p_init(struct sim_state *s){
-	//srandom(time(0));
+	srandom(time(0));
 	init_sim_size(s, 20, sizeof(struct p2p_data));
 
 	struct p2p_data *pd;
@@ -191,7 +191,7 @@ int p2p_init(struct sim_state *s){
 	e->auto_free = true;
 	event_add(e, s);
 
-	if (pd->smart_cloud) {
+	if (pd->new_resource_handler) {
 		//Add next_hour event
 		ue = talloc(1, struct user_event);
 		ue->type = HOUR_PASS;

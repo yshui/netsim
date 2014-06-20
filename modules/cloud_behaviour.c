@@ -209,12 +209,11 @@ void cloud_next_hour_handler(struct sim_state *s){
 				client_new_connection(re->resource_id, nowstart, cand, cn->n, s);
 				nowstart += 32000; //Skip a bit
 			}while(cand);
-			struct server *sn = list_first_entry(&ds->servers, struct server, servers);
-			r = store_get(sn->n->store, re->resource_id);
-			if (nowstart < r->len*3/5) {
+			if (nowstart == 0) {
 				//Connect to server if nowstart < 60% total length
 				int min = 2147483647;
 				struct node *src = NULL;
+				struct server *sn;
 				list_for_each_entry(sn, &ds->servers, servers){
 					if (is_connected(sn->n, cn->n))
 						continue;

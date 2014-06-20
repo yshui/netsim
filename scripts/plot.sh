@@ -1,5 +1,5 @@
 #!/bin/sh
-gnuplot -p -e "set term postscript mono dashed eps; 
+gnuplot -p -e "set term postscript mono dashed enhanced eps;
 	       set output '${1}.eps';
 	       set xlabel \"Time (hr)\";set ylabel \"Bandwidth (Kbit/s)\";
 	       plot \"${1}_co\" with linespoints title \"Cloud nodes outbound\",

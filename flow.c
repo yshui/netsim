@@ -410,6 +410,8 @@ void flow_throttle_handler(struct event *e, struct sim_state *s){
 	//If f->srng->producer == NULL, this should be a FLOW_DONE event
 	assert(f->srng->producer);
 	double delta = f->srng->producer->speed[1]-f->speed[0];
+	if (delta >= eps)
+		return;
 	assert(delta < eps);
 	flow_range_update(f, s);
 	//Speed throttle don't have delay, this is a hack
